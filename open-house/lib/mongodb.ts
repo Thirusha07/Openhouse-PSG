@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = "";
+const MONGODB_URI = "mongodb+srv://msc_ss_2021:msc2021@open.8os4bi8.mongodb.net/?retryWrites=true&w=majority&appName=open";
 
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) {
