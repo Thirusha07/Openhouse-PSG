@@ -210,20 +210,41 @@ export default function HomePage() {
     name: '',
     email: '',
     students: '',
-    year: String(new Date().getFullYear()),
-    month: months[new Date().getMonth()],
-    day: String(new Date().getDate()),
+    scheduleId: "",
     idProofImage: null as File | null | undefined,
+    mobileNumber: '',
+    proof: ''
   });
+  type Schedule = {
+    _id: string;
+    date: string;
+    capacity: number;
+  };
+
+  const [availableSchedules, setAvailableSchedules] = useState<Schedule[]>([]);
   const [bookingError, setBookingError] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
 
   useEffect(() => {
     const savedDepartments = localStorage.getItem('openHouseDepartments');
     if (savedDepartments) {
       setDepartments(JSON.parse(savedDepartments));
     }
+  }, []);
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      try {
+        const res = await fetch('/api/schedule/fetch-schedule');
+        const data = await res.json();
+        console.log("dta", data)
+        setAvailableSchedules(Array.isArray(data.schedules) ? data.schedules : []);
+      } catch (err) {
+        console.error("Failed to fetch schedules", err);
+      }
+    };
+    fetchSchedules();
   }, []);
 
   useEffect(() => {
@@ -233,6 +254,29 @@ export default function HomePage() {
   const handleInputChange = (e: any) => {
     setBookingFormData({ ...bookingFormData, [e.target.name]: e.target.value });
   };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    console.log("Entered into handleDateChange");
+    const scheduleId = e.target.value; // This is the _id of the selected schedule
+    console.log("avail", availableSchedules);
+    console.log("scheduleId", scheduleId);
+
+
+    // Find the selected schedule based on _id
+    const schedule = availableSchedules.find((s) => s._id.toString() === scheduleId) || null;
+
+    // Update bookingFormData with the selected scheduleId
+    setBookingFormData((prev) => ({ ...prev, scheduleId }));
+
+    // Log the schedule (it will contain the date and capacity)
+    console.log("Schedule", schedule);
+
+    // Set selectedSchedule based on the found schedule
+    setSelectedSchedule(schedule);
+  };
+
+
+
 
   const handleIdProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -267,10 +311,10 @@ export default function HomePage() {
       name: '',
       email: '',
       students: '',
-      year: String(new Date().getFullYear()),
-      month: months[new Date().getMonth()],
-      day: String(new Date().getDate()),
+      scheduleId: '',
       idProofImage: null,
+      mobileNumber: '',
+      proof: ''
     });
     setBookingError('');
     setRegistrationSuccess(false);
@@ -288,66 +332,126 @@ export default function HomePage() {
     // You can add logic here to actually send the registration data
   };
 
-  const handleRequestVisit = (department: Department) => {
-    setSelectedLabForBooking(department);
+  const handleRequestVisit = () => {
+    // setSelectedLabForBooking(department);
     setBookingModalOpen(true);
     setBookingError('');
     setBookingFormData({
       ...bookingFormData,
       students: '',
       idProofImage: undefined,
-      year: String(new Date().getFullYear()),
-      month: months[new Date().getMonth()],
-      day: String(new Date().getDate()),
+      scheduleId: ''
     });
     setIdProofPreview(null);
   };
 
-  const handleBookingSubmit = () => {
-    if (!selectedLabForBooking) return;
+  // const handleBookingSubmit = async () => {
+  //   if (!bookingFormData.idProofImage) return;
 
-    const requestedStudents = parseInt(bookingFormData.students, 10);
-    if (isNaN(requestedStudents) || requestedStudents <= 0 || requestedStudents > 100) {
-      setBookingError('Please enter a valid number of students (1-100).');
+  //   if (!selectedSchedule) {
+  //     alert("Please select a date.");
+  //     return;
+  //   }
+
+  //   if (parseInt(bookingFormData.students) > selectedSchedule.capacity) {
+  //     alert("Number of students exceeds the available capacity for the selected date.");
+  //     return;
+  //   }
+
+  //   try {
+  //     const formData = {
+  //       status: "pending",
+  //       eventData: {
+  //         email: bookingFormData.email,
+  //         institutionName: bookingFormData.institute,
+  //         schedule: bookingFormData.scheduleId,
+  //         numberOfMembers: bookingFormData.students,
+  //         representativeName: bookingFormData.name,
+  //         mobileNumber: bookingFormData.mobileNumber,
+  //         proof: bookingFormData.idProofImage, // Ensure this is handled in your upload logic
+  //       }
+  //     };
+
+  //     const res = await fetch("/api/request/create-request", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(formData),
+  //     });
+
+  //     const result = await res.json();
+
+  //     if (res.ok) {
+  //       alert("Visit request submitted successfully!");
+  //       handleCloseModal();
+  //     } else {
+  //       throw new Error(result.error || "Failed to submit request");
+  //     }
+  //   } catch (err: any) {
+  //     console.error("Submit Error:", err);
+  //     setBookingError(err.message || "An unexpected error occurred.");
+  //   }
+  // };
+  const handleBookingSubmit = async () => {
+    if (!bookingFormData.idProofImage) return;
+
+    if (!selectedSchedule) {
+      alert("Please select a date.");
       return;
     }
 
-    if (!bookingFormData.idProofImage) {
-      setBookingError('Please upload a valid ID Proof image (less than 2MB).');
+    if (parseInt(bookingFormData.students) > selectedSchedule.capacity) {
+      alert("Number of students exceeds the available capacity for the selected date.");
       return;
     }
 
-    if (selectedLabForBooking.booked + requestedStudents > selectedLabForBooking.capacity) {
-      setBookingError(`Sorry, only ${selectedLabForBooking.capacity - selectedLabForBooking.booked} slots are available for ${selectedLabForBooking.name}.`);
-      return;
+    try {
+      const formData = new FormData();
+      formData.append("email", bookingFormData.email);
+      formData.append("institutionName", bookingFormData.institute);
+      formData.append("scheduleId", bookingFormData.scheduleId);
+      formData.append("numberOfMembers", bookingFormData.students);
+      formData.append("representativeName", bookingFormData.name);
+      formData.append("mobileNumber", bookingFormData.mobileNumber);
+      formData.append("proof", bookingFormData.idProofImage); // File object
+      console.log("Formdata", formData)
+
+      const res = await fetch("/api/request/create-request", {
+        method: "POST",
+        body: formData, // ✅ no headers
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert("Visit request submitted successfully!");
+        handleCloseModal();
+      } else {
+        throw new Error(result.error || "Failed to submit request");
+      }
+    } catch (err: any) {
+      console.error("Submit Error:", err);
+      setBookingError(err.message || "An unexpected error occurred.");
     }
-
-    const selectedDate = `<span class="math-inline">\{bookingFormData\.year\}\-</span>{months.indexOf(bookingFormData.month) + 1}-${bookingFormData.day}`;
-    console.log('Booking Form Data:', { ...bookingFormData, date: selectedDate }); // For demonstration
-
-    setDepartments((prevDepartments) =>
-      prevDepartments.map((dept) =>
-        dept.name === selectedLabForBooking.name
-          ? { ...dept, booked: dept.booked + requestedStudents }
-          : dept
-      )
-    );
-
-    setBookingModalOpen(false);
-    alert(`Visit to ${selectedLabForBooking.name} booked for ${requestedStudents} students on ${selectedDate} with ID Proof uploaded!`);
-    setBookingFormData({
-      institute: '',
-      name: '',
-      email: '',
-      students: '',
-      year: String(new Date().getFullYear()),
-      month: months[new Date().getMonth()],
-      day: String(new Date().getDate()),
-      idProofImage: undefined,
-    });
-    setIdProofPreview(null);
   };
 
+
+  const fetchAllSchedules = async () => {
+    try {
+      const res = await fetch("/api/schedule/all");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch schedules");
+      }
+
+      return data.schedules; // Array of { date, capacity }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      return [];
+    }
+  };
   const filteredDepartments = departments.filter((dept) =>
     (dept.name.toLowerCase().includes(search.toLowerCase()) || search === '') &&
     (selectedDepartment === '' || dept.name === selectedDepartment)
@@ -357,42 +461,49 @@ export default function HomePage() {
     <div className="h-screen bg-cover bg-center" style={{ backgroundImage: "url('/images/background.jpg')" }}>
       <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-70"></div>
       <div className="relative z-10 p-6">
-      <div className="flex flex-col items-center justify-center mb-6">
-  <motion.h1
-    initial={{ opacity: 0, y: -50 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8 }}
-    className="text-white font-bold text-center mb-6 font-attractive"
-  >
-    <div className="flex items-center justify-center">
-  <img
-    src="/images/logo.jpg" // Replace with the actual path if different
-    alt="PSG Logo"
-    className="h-20 mr-4" // Adjust height as needed
-    />
-    <span className="text-5xl">PSG College of Technology</span>
-    <br />
-    <br />
-    </div>
-    <span className="text-4xl">Platinum Jubilee Celebrations</span>
-    <br />
-    <br />
-    <span className="text-3xl">PSG Open House 2025</span>
-  </motion.h1>
-</div>
+        <div className="flex flex-col items-center justify-center mb-6">
+          <motion.h1
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-white font-bold text-center mb-6 font-attractive"
+          >
+            <div className="flex items-center justify-center">
+              <img
+                src="/images/logo.jpg" // Replace with the actual path if different
+                alt="PSG Logo"
+                className="h-20 mr-4" // Adjust height as needed
+              />
+              <span className="text-5xl">PSG College of Technology</span>
+              <br />
+              <br />
+            </div>
+            <span className="text-4xl">Platinum Jubilee Celebrations</span>
+            <br />
+            <br />
+            <span className="text-3xl">PSG Open House 2025</span>
+            <button
+              onClick={() => handleRequestVisit()}
+              className={`bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end`}
+            // disabled={dept.capacity - dept.booked <= 0}
+            >
+              Request Visit
+            </button>
+          </motion.h1>
+        </div>
 
-       
+
 
         <div className="mt-6 w-full">
-          <img  src="/images/background.jpg" 
-             alt="Background Below Search"        
-             className="w-full h-auto shadow-md"
-            style={{ maxHeight: '500px' }} 
-            />
-      </div>
+          <img src="/images/background.jpg"
+            alt="Background Below Search"
+            className="w-full h-auto shadow-md"
+            style={{ maxHeight: '500px' }}
+          />
+        </div>
 
-       {/* Search and Filter */}
-       <div className="mt-8 flex justify-center gap-4">
+        {/* Search and Filter */}
+        <div className="mt-8 flex justify-center gap-4">
           <input
             type="text"
             placeholder="Search labs..."
@@ -428,19 +539,13 @@ export default function HomePage() {
                 <p className="text-gray-400 mb-2 text-sm">{dept.location}</p>
                 <p className="text-gray-300 mb-3 text-sm">{dept.description}</p>
               </div>
-              <button
-                onClick={() => handleRequestVisit(dept)}
-                className={`bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end ${dept.capacity - dept.booked <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={dept.capacity - dept.booked <= 0}
-              >
-                Request Visit
-              </button>
+
             </motion.div>
           ))}
         </div>
 
         {/* Booking Modal */}
-        {bookingModalOpen && selectedLabForBooking && (
+        {bookingModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
@@ -449,13 +554,24 @@ export default function HomePage() {
               transition={{ duration: 0.3 }}
               className="bg-gray-900 p-8 rounded-lg shadow-lg w-120 max-w-md"
             >
-              <h2 className="text-2xl font-bold text-white mb-4 font-attractive">Request Visit to {selectedLabForBooking.name}</h2>
+              <h2 className="text-2xl font-bold text-white mb-4 font-attractive">Request Visit </h2>
               <input type="text" name="institute" placeholder="Institute Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
               <input type="text" name="name" placeholder="Your Name (Teacher/Coordinator)" value={bookingFormData.name} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
               <div className="flex gap-2 mb-3">
                 <input type="email" name="email" placeholder="Email" value={bookingFormData.email} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
                 <button onClick={handleVerifyEmail} className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600">Verify</button>
               </div>
+              <input
+                type="tel"
+                name="mobileNumber"
+                placeholder="Mobile Number"
+                value={bookingFormData.mobileNumber}
+                onChange={handleInputChange}
+                className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                required
+              />
               <input
                 type="number"
                 name="students"
@@ -466,37 +582,29 @@ export default function HomePage() {
                 min="1"
                 max="100"
               />
-              <div className="flex gap-2 mb-3">
+              <div className="mb-3">
+                <label className="block text-white mb-1">Select a Visit Date</label>
                 <select
-                  name="day"
-                  value={bookingFormData.day}
-                  onChange={handleInputChange}
-                  className="p-3 border border-gray-700 rounded-md bg-gray-800 text-white font-light"
+                  name="scheduleId"
+                  value={bookingFormData.scheduleId}
+                  onChange={handleDateChange}
+                  className="w-full p-3 rounded bg-gray-800 text-white font-light"
                 >
-                  {days.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
+                  {Array.isArray(availableSchedules) && availableSchedules.length > 0 ? (
+                    availableSchedules.map((schedule) => (
+                      <option key={schedule._id} value={schedule._id}>
+                        {new Date(schedule.date).toLocaleDateString()}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>Loading available dates...</option>
+                  )}
                 </select>
-                <select
-                  name="month"
-                  value={bookingFormData.month}
-                  onChange={handleInputChange}
-                  className="p-3 border border-gray-700 rounded-md bg-gray-800 text-white font-light"
-                >
-                  {months.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  name="year"
-                  value={bookingFormData.year}
-                  onChange={handleInputChange}
-                  className="p-3 border border-gray-700 rounded-md bg-gray-800 text-white font-light"
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                {selectedSchedule && (
+                  <p className="text-sm text-gray-300 mt-1">
+                    Capacity: {selectedSchedule.capacity}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="idProofImage" className="block text-gray-300 text-sm font-bold mb-2">Upload ID Proof Image (Max 2MB)</label>
@@ -521,7 +629,7 @@ export default function HomePage() {
                 <button
                   onClick={handleBookingSubmit}
                   className="bg-green-500 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-600"
-                  disabled={selectedLabForBooking && (isNaN(parseInt(bookingFormData.students, 10)) || parseInt(bookingFormData.students, 10) <= 0 || parseInt(bookingFormData.students, 10) > 100 || !bookingFormData.idProofImage)}
+                  disabled={(isNaN(parseInt(bookingFormData.students, 10)) || parseInt(bookingFormData.students, 10) <= 0 || parseInt(bookingFormData.students, 10) > 100 || !bookingFormData.idProofImage)}
                 >
                   Book Visit
                 </button>

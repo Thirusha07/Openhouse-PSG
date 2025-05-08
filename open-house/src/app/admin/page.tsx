@@ -17,11 +17,10 @@ interface Department {
 
 interface BookingRequest {
     id: string;
-    labId: string;
-    institute: string;
-    name: string;
+    institutionName: string;
+    representativeName: string;
     email: string;
-    students: number;
+    numbersOfMembers: number;
     date: string;
     status: 'pending' | 'accepted' | 'declined';
 }
@@ -262,9 +261,20 @@ const AdminPage = () => {
     const [editingLabId, setEditingLabId] = useState<string | null>(null);
     useEffect(() => {
         const storedRequests = localStorage.getItem('openHouseBookingRequests');
-        if (storedRequests) {
-            setBookingRequests(JSON.parse(storedRequests));
-        }
+        const fetchRequests = async () => {
+            try {
+                const res = await fetch("/api/request/fetch-request");
+                const data = await res.json();
+                console.log(data.requests)
+                if (res.ok) {
+                    setBookingRequests(data.requests); // Set requests from the response
+                } else {
+                    console.error("Failed to fetch requests:", data.error);
+                }
+            } catch (error) {
+                console.error("Error fetching requests:", error);
+            }
+        };
         const storedEvents = localStorage.getItem('openHouseEvents');
         if (storedEvents) {
             setEventSlots(JSON.parse(storedEvents));
@@ -277,6 +287,7 @@ const AdminPage = () => {
         } else {
             setLabs([]);
         }
+        fetchRequests();
     }, [activeView]);
 
     useEffect(() => {
@@ -414,14 +425,39 @@ const AdminPage = () => {
     const handleDeleteLab = (labId: string) => {
         setLabs(prevLabs => prevLabs.filter(lab => lab.id !== labId));
     };
+    const handleAddSchedule = async () => {
+        try {
+            // Send schedule data to backend
+            const res = await fetch("/api/schedule/create-schedule", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    date: newEvent.date,         // Make sure `newEvent.date` is a valid ISO date
+                    capacity: newEvent.capacity  // Assume this is a number
+                })
+            });
 
-    const handleAddEvent = () => {
-        if (newEvent.labId) {
-            const newEventWithId = { ...newEvent, id: Date.now().toString() };
+            const result = await res.json();
+
+            if (!res.ok) {
+                throw new Error(result.error || "Failed to create schedule");
+            }
+
+            // Attach schedule _id to the event and store locally
+            const newEventWithId = {
+                ...newEvent,
+                id: Date.now().toString(),
+                scheduleId: result.schedule._id, // Assuming the API returns the created schedule
+            };
+
             setEventSlots(prevEvents => [...prevEvents, newEventWithId]);
             closeAddEventModal();
-        } else {
-            alert('Please select a lab to add the event to.');
+
+        } catch (error: any) {
+            console.error("Add Schedule Error:", error);
+            alert(error.message || "An error occurred while adding schedule.");
         }
     };
 
@@ -431,16 +467,16 @@ const AdminPage = () => {
                 req.id === requestId ? { ...req, status: 'accepted' } : req
             )
         );
-        const requestToAccept = bookingRequests.find(req => req.id === requestId);
-        if (requestToAccept) {
-            setLabs(prevLabs =>
-                prevLabs.map(lab =>
-                    lab.id === requestToAccept.labId
-                        ? { ...lab, booked: lab.booked + requestToAccept.students }
-                        : lab
-                )
-            );
-        }
+        // const requestToAccept = bookingRequests.find(req => req.id === requestId);
+        // if (requestToAccept) {
+        //     setLabs(prevLabs =>
+        //         prevLabs.map(lab =>
+        //             lab.id === requestToAccept.labId
+        //                 ? { ...lab, booked: lab.booked + requestToAccept.students }
+        //                 : lab
+        //         )
+        //     );
+        // }
     };
 
     const handleDeclineRequest = (requestId: string) => {
@@ -463,7 +499,7 @@ const AdminPage = () => {
                 <button onClick={() => setActiveView('viewLabs')} className={`px-3 py-2 rounded-md font-semibold w-full text-left ${activeView === 'viewLabs' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                     Available Labs ({labs.filter(lab => !lab.id?.startsWith('initial-')).length + initialDepartments.length})
                 </button>
-            
+
                 <button onClick={openAddEventModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold w-full text-left">
                     Add Event
                 </button>
@@ -473,104 +509,104 @@ const AdminPage = () => {
                 <button onClick={() => setActiveView('accepted')} className={`px-3 py-2 rounded-md font-semibold w-full text-left ${activeView === 'accepted' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                     Accepted Requests ({bookingRequests.filter(r => r.status === 'accepted').length})
                 </button>
-                
+
             </div>
-    
+
             {/* Main Content Area */}
             <div className="flex-1 p-6">
-            <div className="flex-1 p-6 flex flex-col items-center">
-                <div className="flex items-center mb-2">
-                <img
-                src="/images/logo.jpg" // Replace with the actual path if different
-                alt="PSG Logo"
-                className="h-20 mr-4" // Adjust height and right margin as needed
-                />
-                <h1 className="text-5xl font-bold font-attractive">PSG College of Technology</h1>
-                </div>
-                <h1 className="text-4xl font-bold mb-6 font-attractive text-center">Platinum Jubilee Celebrations</h1>
-                <h3 className="text-3xl font-bold mb-6 font-attractive text-center">Welcome, Admin!</h3>
+                <div className="flex-1 p-6 flex flex-col items-center">
+                    <div className="flex items-center mb-2">
+                        <img
+                            src="/images/logo.jpg" // Replace with the actual path if different
+                            alt="PSG Logo"
+                            className="h-20 mr-4" // Adjust height and right margin as needed
+                        />
+                        <h1 className="text-5xl font-bold font-attractive">PSG College of Technology</h1>
+                    </div>
+                    <h1 className="text-4xl font-bold mb-6 font-attractive text-center">Platinum Jubilee Celebrations</h1>
+                    <h3 className="text-3xl font-bold mb-6 font-attractive text-center">Welcome, Admin!</h3>
                 </div>
                 {isAddLabModalOpen && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
-            <h2 className="text-2xl font-bold mb-4 font-attractive">Add New Lab</h2>
-            <div className="mb-3">
-                <label htmlFor="name" className="block text-gray-300 text-sm font-bold mb-2">Lab Name:</label>
-                <input type="text" id="name" name="name" value={newLab.name} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="deptName" className="block text-gray-300 text-sm font-bold mb-2">Department Name:</label>
-                <input type="text" id="deptName" name="deptName" value={newLab.deptName} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="description" className="block text-gray-300 text-sm font-bold mb-2">Description:</label>
-                <input type="text" id="description" name="description" value={newLab.description} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="image" className="block text-gray-300 text-sm font-bold mb-2">Image (JPG/JPEG, &lt; 2MB, Optional):</label>
-                <input type="file" id="image" accept="image/jpeg, image/jpg" onChange={handleImageUpload} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                {imageError && <p className="text-red-500 text-sm mt-1">{imageError}</p>}
-                {newLab.image && !imageError && typeof newLab.image === 'string' && newLab.image.startsWith('data:image') && (
-                    <img src={newLab.image} alt="Preview" className="mt-2 max-h-32 rounded-md" />
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
+                            <h2 className="text-2xl font-bold mb-4 font-attractive">Add New Lab</h2>
+                            <div className="mb-3">
+                                <label htmlFor="name" className="block text-gray-300 text-sm font-bold mb-2">Lab Name:</label>
+                                <input type="text" id="name" name="name" value={newLab.name} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="deptName" className="block text-gray-300 text-sm font-bold mb-2">Department Name:</label>
+                                <input type="text" id="deptName" name="deptName" value={newLab.deptName} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="description" className="block text-gray-300 text-sm font-bold mb-2">Description:</label>
+                                <input type="text" id="description" name="description" value={newLab.description} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="image" className="block text-gray-300 text-sm font-bold mb-2">Image (JPG/JPEG, &lt; 2MB, Optional):</label>
+                                <input type="file" id="image" accept="image/jpeg, image/jpg" onChange={handleImageUpload} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                                {imageError && <p className="text-red-500 text-sm mt-1">{imageError}</p>}
+                                {newLab.image && !imageError && typeof newLab.image === 'string' && newLab.image.startsWith('data:image') && (
+                                    <img src={newLab.image} alt="Preview" className="mt-2 max-h-32 rounded-md" />
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-4">
+                                <button onClick={closeAddLabModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
+                                <button onClick={handleAddLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Add Lab</button>
+                            </div>
+                        </div>
+                    </div>
                 )}
-            </div>
-           
-            <div className="flex justify-end gap-4">
-                <button onClick={closeAddLabModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
-                <button onClick={handleAddLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Add Lab</button>
-            </div>
-        </div>
-    </div>
-)}
-    
-    {isEditLabModalOpen && editingLab && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
-            <h2 className="text-2xl font-bold mb-4 font-attractive">Edit Lab</h2>
-            <div className="mb-3">
-                <label htmlFor="editName" className="block text-gray-300 text-sm font-bold mb-2">Lab Name:</label>
-                <input type="text" id="editName" name="name" value={editingLab.name} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="editDeptName" className="block text-gray-300 text-sm font-bold mb-2">Department Name:</label>
-                <input type="text" id="editDeptName" name="deptName" value={editingLab.deptName} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="editDescription" className="block text-gray-300 text-sm font-bold mb-2">Description:</label>
-                <input type="text" id="editDescription" name="description" value={editingLab.description} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
-            <div className="mb-3">
-                <label htmlFor="editImage" className="block text-gray-300 text-sm font-bold mb-2">Image (JPG/JPEG, &lt; 2MB, Optional):</label>
-                <input type="file" id="editImage" accept="image/jpeg, image/jpg" onChange={handleEditImageUpload}
-                       className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                {imageError && <p className="text-red-500 text-sm mt-1">{imageError}</p>}
-                
-            </div>
-            
-            <div className="flex justify-end gap-4">
-                <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold">Cancel</button>
-                <button onClick={handleSaveEditedLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Save Changes</button>
-            </div>
-            </div>
-    </div>
-)}
-    
+
+                {isEditLabModalOpen && editingLab && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
+                            <h2 className="text-2xl font-bold mb-4 font-attractive">Edit Lab</h2>
+                            <div className="mb-3">
+                                <label htmlFor="editName" className="block text-gray-300 text-sm font-bold mb-2">Lab Name:</label>
+                                <input type="text" id="editName" name="name" value={editingLab.name} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="editDeptName" className="block text-gray-300 text-sm font-bold mb-2">Department Name:</label>
+                                <input type="text" id="editDeptName" name="deptName" value={editingLab.deptName} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="editDescription" className="block text-gray-300 text-sm font-bold mb-2">Description:</label>
+                                <input type="text" id="editDescription" name="description" value={editingLab.description} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="editImage" className="block text-gray-300 text-sm font-bold mb-2">Image (JPG/JPEG, &lt; 2MB, Optional):</label>
+                                <input type="file" id="editImage" accept="image/jpeg, image/jpg" onChange={handleEditImageUpload}
+                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                                {imageError && <p className="text-red-500 text-sm mt-1">{imageError}</p>}
+
+                            </div>
+
+                            <div className="flex justify-end gap-4">
+                                <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold">Cancel</button>
+                                <button onClick={handleSaveEditedLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Save Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <h2 className="text-2xl font-bold mt-8 mb-4 font-attractive">
                     {activeView === 'pending' && 'Pending Visit Requests'}
                     {activeView === 'accepted' && 'Accepted Visit Requests'}
-        
+
                     {activeView === 'viewLabs'}
                 </h2>
                 {activeView !== 'viewLabs' && filteredRequests.length === 0 ? (
                     <p className="text-gray-300">No {activeView.replace('Requests', '')} visit requests.</p>
                 ) : (activeView !== 'viewLabs' &&
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-4">
-                        {filteredRequests.map(request => (
+                        {bookingRequests.map(request => (
                             <div key={request.id} className="border rounded-md bg-gray-800 shadow-md p-4">
-                                <p><strong className="text-gray-300">Institute:</strong> <span className="text-white font-light">{request.institute}</span></p>
-                                <p><strong className="text-gray-300">Name:</strong> <span className="text-white font-light">{request.name}</span></p>
+                                <p><strong className="text-gray-300">Institute:</strong> <span className="text-white font-light">{request.institutionName}</span></p>
+                                <p><strong className="text-gray-300">Name:</strong> <span className="text-white font-light">{request.representativeName}</span></p>
                                 <p><strong className="text-gray-300">Email:</strong> <span className="text-white font-light">{request.email}</span></p>
-                                <p><strong className="text-gray-300">Students:</strong> <span className="text-white font-light">{request.students}</span></p>
+                                <p><strong className="text-gray-300">Students:</strong> <span className="text-white font-light">{request.numbersOfMembers}</span></p>
                                 <p><strong className="text-gray-300">Date:</strong> <span className="text-white font-light">{request.date}</span></p>
                                 <div className="mt-3 flex gap-2">
                                     {request.status === 'pending' && (
@@ -587,8 +623,8 @@ const AdminPage = () => {
                         ))}
                     </div>
                 )}
-    
-                    {activeView === 'viewLabs' && (
+
+                {activeView === 'viewLabs' && (
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold font-attractive">Available Labs</h2>
                         <button onClick={openAddLabModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold">
@@ -613,52 +649,52 @@ const AdminPage = () => {
                                         <div className="mb-2">
                                             <label htmlFor={`editDeptName-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Department Name:</label>
                                             <input type="text" id={`editDeptName-${lab.id}`} name="deptName" value={editingLab?.deptName || ''} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                                    </div>
-                                    <div className="mb-2">
-                                        <label htmlFor={`editDescription-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Description:</label>
-                                        <input type="text" id={`editDescription-${lab.id}`} name="description" value={editingLab?.description || ''} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                                    </div>
-                                    
-                                    <div className="flex justify-end gap-2">
-                                        <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-red-600 font-semibold text-sm">Cancel</button>
-                                        <button onClick={handleSaveEditedLab} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-blue-600 font-semibold text-sm">Save</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="text-xl font-semibold mb-1 text-white">{lab.name}</h3>
-                                            <p className="text-gray-300 text-sm"><span className="text-white font-light">{lab.deptName}</span></p>
+                                        </div>
+                                        <div className="mb-2">
+                                            <label htmlFor={`editDescription-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Description:</label>
+                                            <input type="text" id={`editDescription-${lab.id}`} name="description" value={editingLab?.description || ''} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
                                         </div>
 
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-red-600 font-semibold text-sm">Cancel</button>
+                                            <button onClick={handleSaveEditedLab} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-blue-600 font-semibold text-sm">Save</button>
+                                        </div>
                                     </div>
-                                    <p className="text-gray-300 text-sm mb-2">Description: <span className="text-white font-light">{lab.description}</span></p>
-                                    <div className="absolute bottom-2 right-2 flex gap-2">
-                                        <button onClick={() => handleDeleteLab(lab.id)} className="text-red-500 hover:text-red-400">
-                                            <FaTrash />
-                                        </button>
+                                ) : (
+                                    <>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="text-xl font-semibold mb-1 text-white">{lab.name}</h3>
+                                                <p className="text-gray-300 text-sm"><span className="text-white font-light">{lab.deptName}</span></p>
+                                            </div>
+
+                                        </div>
+                                        <p className="text-gray-300 text-sm mb-2">Description: <span className="text-white font-light">{lab.description}</span></p>
+                                        <div className="absolute bottom-2 right-2 flex gap-2">
+                                            <button onClick={() => handleDeleteLab(lab.id)} className="text-red-500 hover:text-red-400">
+                                                <FaTrash />
+                                            </button>
 
 
-                                        <button onClick={() => openEditLabModal(lab)} className="text-yellow-500 hover:text-yellow-400">
-                                            <FaEdit />
-                                        </button>
+                                            <button onClick={() => openEditLabModal(lab)} className="text-yellow-500 hover:text-yellow-400">
+                                                <FaEdit />
+                                            </button>
 
 
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                    
-                </div>
-            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
 
-            {isAddEventModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
-                        <h2 className="text-2xl font-bold mb-4 font-attractive">Add New Event Slot</h2>
-                        <div className="mb-3">
+                    </div>
+                )}
+
+                {isAddEventModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
+                            <h2 className="text-2xl font-bold mb-4 font-attractive">Add Schedule</h2>
+                            {/* <div className="mb-3">
                             <label htmlFor="labId" className="block text-gray-300 text-sm font-bold mb-2">Lab:</label>
                             <select id="labId" name="labId" value={newEvent.labId} onChange={handleAddEventLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light">
                                 <option value="">Select a Lab</option>
@@ -666,24 +702,24 @@ const AdminPage = () => {
                                     <option key={lab.id} value={lab.id}>{lab.name}</option>
                                 ))}
                             </select>
-                        </div>
-                        <div className="mb-3">
-                            <label htmlFor="date" className="block text-gray-300 text-sm font-bold mb-2">Date:</label>
-                            <input type="date" id="date" name="date" value={newEvent.date} onChange={handleNewEventChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                        </div>
-                        <div className="mb-3">
-                            <label htmlFor="capacity" className="block text-gray-300 text-sm font-bold mb-2">Capacity:</label>
-                            <input type="number" id="capacity" name="capacity" value={newEvent.capacity} onChange={handleNewEventChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                        </div>
-                        <div className="flex justify-end gap-4">
-                            <button onClick={closeAddEventModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
-                            <button onClick={handleAddEvent} disabled={!newEvent.labId || !newEvent.date || newEvent.capacity <= 0} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-blue-600 font-semibold disabled:opacity-50">Add Event</button>
+                        </div> */}
+                            <div className="mb-3">
+                                <label htmlFor="date" className="block text-gray-300 text-sm font-bold mb-2">Date:</label>
+                                <input type="date" id="date" name="date" value={newEvent.date} onChange={handleNewEventChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="capacity" className="block text-gray-300 text-sm font-bold mb-2">Capacity:</label>
+                                <input type="number" id="capacity" name="capacity" value={newEvent.capacity} onChange={handleNewEventChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
+                            </div>
+                            <div className="flex justify-end gap-4">
+                                <button onClick={closeAddEventModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
+                                <button onClick={handleAddSchedule} disabled={!newEvent.date || newEvent.capacity <= 0} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-blue-600 font-semibold disabled:opacity-50">Add Event</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
 }
 export default AdminPage;
