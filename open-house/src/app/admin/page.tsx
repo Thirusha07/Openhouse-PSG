@@ -37,7 +37,7 @@ const initialDepartments: Omit<Department, 'id'>[] = [
     {
         name: "Applied Mathematics and Computational Sciences Lab",
         deptName: "Stony Brook University",
-        image: "/images/applied_mathematics_lab.jpg",
+        image: "/images/applied_maths.jpg",
         description: "Explore mathematical modeling and computational tools.",
         capacity: 50,
         booked: 0,
@@ -464,7 +464,7 @@ const AdminPage = () => {
                     Available Labs ({labs.filter(lab => !lab.id?.startsWith('initial-')).length + initialDepartments.length})
                 </button>
             
-                <button onClick={openAddEventModal} className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 font-semibold w-full">
+                <button onClick={openAddEventModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold w-full text-left">
                     Add Event
                 </button>
                 <button onClick={() => setActiveView('pending')} className={`px-3 py-2 rounded-md font-semibold w-full text-left ${activeView === 'pending' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
@@ -478,8 +478,18 @@ const AdminPage = () => {
     
             {/* Main Content Area */}
             <div className="flex-1 p-6">
-                <h1 className="text-3xl font-bold mb-6 font-attractive">PSG Open House 2025</h1>
-    
+            <div className="flex-1 p-6 flex flex-col items-center">
+                <div className="flex items-center mb-2">
+                <img
+                src="/images/logo.jpg" // Replace with the actual path if different
+                alt="PSG Logo"
+                className="h-20 mr-4" // Adjust height and right margin as needed
+                />
+                <h1 className="text-5xl font-bold font-attractive">PSG College of Technology</h1>
+                </div>
+                <h1 className="text-4xl font-bold mb-6 font-attractive text-center">Platinum Jubilee Celebrations</h1>
+                <h3 className="text-3xl font-bold mb-6 font-attractive text-center">Welcome, Admin!</h3>
+                </div>
                 {isAddLabModalOpen && (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-gray-800 p-8 rounded-md shadow-lg w-96">
@@ -504,14 +514,10 @@ const AdminPage = () => {
                     <img src={newLab.image} alt="Preview" className="mt-2 max-h-32 rounded-md" />
                 )}
             </div>
-            <div className="mb-3">
-                <label htmlFor="capacity" className="block text-gray-300 text-sm font-bold mb-2">Capacity:</label>
-                <input type="number" id="capacity" name="capacity" value={newLab.capacity} onChange={handleNewLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
            
             <div className="flex justify-end gap-4">
                 <button onClick={closeAddLabModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
-                <button onClick={handleAddLab} disabled={imageError !== null} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 font-semibold disabled:opacity-50">Add Lab</button>
+                <button onClick={handleAddLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Add Lab</button>
             </div>
         </div>
     </div>
@@ -540,14 +546,10 @@ const AdminPage = () => {
                 {imageError && <p className="text-red-500 text-sm mt-1">{imageError}</p>}
                 
             </div>
-            <div className="mb-3">
-                <label htmlFor="editCapacity" className="block text-gray-300 text-sm font-bold mb-2">Capacity:</label>
-                <input type="number" id="editCapacity" name="capacity" value={editingLab.capacity} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-            </div>
             
             <div className="flex justify-end gap-4">
-                <button onClick={closeEditLabModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
-                <button onClick={handleSaveEditedLab} disabled={imageError !== null} className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 font-semibold disabled:opacity-50">Save Changes</button>
+                <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold">Cancel</button>
+                <button onClick={handleSaveEditedLab} disabled={imageError !== null} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold disabled:opacity-50">Save Changes</button>
             </div>
             </div>
     </div>
@@ -577,7 +579,7 @@ const AdminPage = () => {
                                             <button onClick={() => handleDeclineRequest(request.id)} className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 font-semibold text-sm">Decline</button>
                                         </>
                                     )}
-                                    <span className={`font-semibold text-sm ${request.status === 'accepted' ? 'text-green-400' : (request.status === 'declined' ? 'text-red-400' : '')}`}>
+                                    <span className={`font-semibold text-sm ${request.status === 'accepted' ? 'bg-gray-700' : (request.status === 'declined' ? 'text-red-400' : '')}`}>
                                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                                     </span>
                                 </div>
@@ -589,7 +591,7 @@ const AdminPage = () => {
                     {activeView === 'viewLabs' && (
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold font-attractive">Available Labs</h2>
-                        <button onClick={openAddLabModal} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 font-semibold">
+                        <button onClick={openAddLabModal} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-semibold">
                             Add New Lab
                         </button>
                     </div>
@@ -616,17 +618,10 @@ const AdminPage = () => {
                                         <label htmlFor={`editDescription-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Description:</label>
                                         <input type="text" id={`editDescription-${lab.id}`} name="description" value={editingLab?.description || ''} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
                                     </div>
-                                    <div className="mb-2">
-                                        <label htmlFor={`editCapacity-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Capacity:</label>
-                                        <input type="number" id={`editCapacity-${lab.id}`} name="capacity" value={editingLab?.capacity || 0} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                                    </div>
-                                    <div className="mb-2">
-                                        <label htmlFor={`editFoundedDate-${lab.id}`} className="block text-gray-300 text-sm font-bold mb-1">Founded Date:</label>
-                                        <input type="date" id={`editFoundedDate-${lab.id}`} name="foundedDate" value={editingLab?.foundedDate || ''} onChange={handleEditLabChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white font-light" />
-                                    </div>
+                                    
                                     <div className="flex justify-end gap-2">
-                                        <button onClick={closeEditLabModal} className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 font-semibold text-sm">Cancel</button>
-                                        <button onClick={handleSaveEditedLab} className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 font-semibold text-sm">Save</button>
+                                        <button onClick={closeEditLabModal} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-red-600 font-semibold text-sm">Cancel</button>
+                                        <button onClick={handleSaveEditedLab} className="bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-blue-600 font-semibold text-sm">Save</button>
                                     </div>
                                 </div>
                             ) : (
@@ -638,7 +633,6 @@ const AdminPage = () => {
                                         </div>
 
                                     </div>
-                                    <p className="text-gray-300 text-sm mb-2">Department: <span className="text-white font-light">{lab.deptName}</span></p>
                                     <p className="text-gray-300 text-sm mb-2">Description: <span className="text-white font-light">{lab.description}</span></p>
                                     <div className="absolute bottom-2 right-2 flex gap-2">
                                         <button onClick={() => handleDeleteLab(lab.id)} className="text-red-500 hover:text-red-400">
@@ -656,11 +650,7 @@ const AdminPage = () => {
                             )}
                         </div>
                     ))}
-                    <div className="border rounded-md bg-gray-800 shadow-md p-4 flex items-center justify-center">
-                        <button onClick={openAddLabModal} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 font-semibold">
-                            Add New Lab
-                        </button>
-                    </div>
+                    
                 </div>
             )}
 
@@ -687,7 +677,7 @@ const AdminPage = () => {
                         </div>
                         <div className="flex justify-end gap-4">
                             <button onClick={closeAddEventModal} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 font-semibold">Cancel</button>
-                            <button onClick={handleAddEvent} disabled={!newEvent.labId || !newEvent.date || newEvent.capacity <= 0} className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 font-semibold disabled:opacity-50">Add Event</button>
+                            <button onClick={handleAddEvent} disabled={!newEvent.labId || !newEvent.date || newEvent.capacity <= 0} className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-blue-600 font-semibold disabled:opacity-50">Add Event</button>
                         </div>
                     </div>
                 </div>

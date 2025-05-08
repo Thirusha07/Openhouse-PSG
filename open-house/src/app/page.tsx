@@ -3,6 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import appliedMathImage from '/public/images/applied_maths.jpg';
+
 
 interface Department {
   name: string;
@@ -17,7 +19,7 @@ const initialDepartments: Department[] = [
   {
     name: "Applied Mathematics and Computational Sciences Lab",
     location: "Stony Brook University",
-    image: "/images/applied_mathematics_lab.jpg", // Replace with actual image URL
+    image: "/images/applied_mathematics_lab.jpg",
     description: "Explore mathematical modeling and computational tools.",
     capacity: 50,
     booked: 0,
@@ -355,18 +357,42 @@ export default function HomePage() {
     <div className="h-screen bg-cover bg-center" style={{ backgroundImage: "url('/images/background.jpg')" }}>
       <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-70"></div>
       <div className="relative z-10 p-6">
-        {/* Title and Register Now */}
-        <motion.h1
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-5xl font-bold text-center text-white mb-6 font-attractive"
-        >
-          PSG Open House 2025
-        </motion.h1>
+      <div className="flex flex-col items-center justify-center mb-6">
+  <motion.h1
+    initial={{ opacity: 0, y: -50 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.8 }}
+    className="text-white font-bold text-center mb-6 font-attractive"
+  >
+    <div className="flex items-center justify-center">
+  <img
+    src="/images/logo.jpg" // Replace with the actual path if different
+    alt="PSG Logo"
+    className="h-20 mr-4" // Adjust height as needed
+    />
+    <span className="text-5xl">PSG College of Technology</span>
+    <br />
+    <br />
+    </div>
+    <span className="text-4xl">Platinum Jubilee Celebrations</span>
+    <br />
+    <br />
+    <span className="text-3xl">PSG Open House 2025</span>
+  </motion.h1>
+</div>
 
-        {/* Search and Filter */}
-        <div className="mt-8 flex justify-center gap-4">
+       
+
+        <div className="mt-6 w-full">
+          <img  src="/images/background.jpg" 
+             alt="Background Below Search"        
+             className="w-full h-auto shadow-md"
+            style={{ maxHeight: '500px' }} 
+            />
+      </div>
+
+       {/* Search and Filter */}
+       <div className="mt-8 flex justify-center gap-4">
           <input
             type="text"
             placeholder="Search labs..."
@@ -404,7 +430,7 @@ export default function HomePage() {
               </div>
               <button
                 onClick={() => handleRequestVisit(dept)}
-                className={`bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end ${dept.capacity - dept.booked <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end ${dept.capacity - dept.booked <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={dept.capacity - dept.booked <= 0}
               >
                 Request Visit
