@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import Schedule from "./schedule";
 
 const eventSchema = new Schema({
   email: {

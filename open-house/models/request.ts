@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import Event from './event'; 
 
 const requestSchema = new Schema({
   event: {

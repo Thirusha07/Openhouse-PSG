@@ -226,6 +226,8 @@ export default function HomePage() {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+  const [emailVerificationStatus, setEmailVerificationStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   useEffect(() => {
     const savedDepartments = localStorage.getItem('openHouseDepartments');
@@ -322,9 +324,22 @@ export default function HomePage() {
   };
 
   const handleVerifyEmail = () => {
-    alert('Verification email sent! Please check your inbox.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+    setEmailVerificationStatus("loading");
+  
+    setTimeout(() => {
+      if (emailRegex.test(bookingFormData.email)) {
+        setEmailVerificationStatus("success");
+        setIsEmailVerified(true);
+      } else {
+        setEmailVerificationStatus("error");
+        setIsEmailVerified(false);
+      }
+    }, 1000); // simulate async check delay
   };
-
+  
+  
   const handleRegistrationSubmit = () => {
     alert('Registration submitted!');
     setIsModalOpen(false);
@@ -436,6 +451,32 @@ export default function HomePage() {
     }
   };
 
+  const isFormValid = () => {
+    const {
+      institute,
+      name,
+      email,
+      mobileNumber,
+      students,
+      scheduleId,
+      idProofImage,
+    } = bookingFormData;
+  
+    const studentCount = parseInt(students, 10);
+  
+    return (
+      institute.trim() &&
+      name.trim() &&
+      email.trim() &&
+      mobileNumber.trim().length === 10 &&
+      !isNaN(studentCount) &&
+      studentCount > 0 &&
+      studentCount <= 100 &&
+      scheduleId &&
+      idProofImage
+    );
+  };
+  
 
   const fetchAllSchedules = async () => {
     try {
@@ -557,9 +598,33 @@ export default function HomePage() {
               <h2 className="text-2xl font-bold text-white mb-4 font-attractive">Request Visit </h2>
               <input type="text" name="institute" placeholder="Institute Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
               <input type="text" name="name" placeholder="Your Name (Teacher/Coordinator)" value={bookingFormData.name} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
-              <div className="flex gap-2 mb-3">
-                <input type="email" name="email" placeholder="Email" value={bookingFormData.email} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
-                <button onClick={handleVerifyEmail} className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600">Verify</button>
+              <div className="flex gap-2 mb-3 items-center">
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  value={bookingFormData.email}
+                  onChange={(e) => {
+                    setBookingFormData({ ...bookingFormData, email: e.target.value });
+                    setEmailVerificationStatus("idle"); // reset status on change
+                    setIsEmailVerified(false);
+                  }}
+                  className="w-full p-3 rounded bg-gray-800 text-white font-light"
+                />
+                <button
+                  onClick={handleVerifyEmail}
+                  disabled={!bookingFormData.email}
+                  className={`px-4 py-2 rounded font-semibold ${
+                    bookingFormData.email
+                      ? "bg-yellow-500 text-white hover:bg-yellow-600"
+                      : "bg-gray-500 text-white cursor-not-allowed"
+                  }`}                
+                >
+                  Verify
+                </button>
+                {emailVerificationStatus === "loading" && <span className="text-yellow-400 animate-spin">🔄</span>}
+                {emailVerificationStatus === "success" && <span className="text-green-400">✔️</span>}
+                {emailVerificationStatus === "error" && <span className="text-red-400">❌</span>}
               </div>
               <input
                 type="tel"
@@ -628,11 +693,16 @@ export default function HomePage() {
                 <button onClick={handleCloseModal} className="bg-red-500 text-white px-5 py-2 rounded-md font-semibold hover:bg-red-600">Cancel</button>
                 <button
                   onClick={handleBookingSubmit}
-                  className="bg-green-500 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-600"
-                  disabled={(isNaN(parseInt(bookingFormData.students, 10)) || parseInt(bookingFormData.students, 10) <= 0 || parseInt(bookingFormData.students, 10) > 100 || !bookingFormData.idProofImage)}
+                  className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${
+                    isFormValid() && isEmailVerified
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-gray-600 text-white cursor-not-allowed"
+                  }`}
+                  disabled={!(isFormValid() && isEmailVerified)}
                 >
                   Book Visit
                 </button>
+
               </div>
             </motion.div>
           </div>

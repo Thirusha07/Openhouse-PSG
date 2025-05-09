@@ -1,18 +1,16 @@
-// app/api/request/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "../../../../../lib/mongodb";
 import Request from "../../../../../models/request";
+import "../../../../../models/event";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    // Fetch only requests with status 'pending'
-    const requests = await Request.find({ status: 'pending' }) // Filter for pending requests
-      .populate("event") // Populate the associated Event details (if needed)
-      .exec();
+    const status = req.nextUrl.searchParams.get("status"); // Get the status query param
+    const query = status ? { status } : {}; // If no status provided, fetch all
 
-    console.log("requests", requests);
+    const requests = await Request.find(query).populate("event").exec();
 
     return NextResponse.json({ success: true, requests });
   } catch (error) {
