@@ -1,210 +1,31 @@
-'use client'; // Add this directive at the top of the file
 
+'use client'; // Add this directive at the top of the file
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import appliedMathImage from '/public/images/applied_maths.jpg';
 
-
-interface Department {
-  name: string;
-  location: string;
-  image: string;
+interface Lab {
+  labName: string;
+  departmentName: string;
   description: string;
-  capacity: number;
-  booked: number;
+  image: string;
 }
 
-const initialDepartments: Department[] = [
-  {
-    name: "Applied Mathematics and Computational Sciences Lab",
-    location: "Stony Brook University",
-    image: "/images/applied_mathematics_lab.jpg",
-    description: "Explore mathematical modeling and computational tools.",
-    capacity: 50,
-    booked: 0,
-  },
-  {
-    name: "Applied Science Lab",
-    location: "Various Institutions",
-    image: "/images/applied_science_lab.jpg", // Replace with actual image URL
-    description: "Witness practical applications of scientific principles.",
-    capacity: 60,
-    booked: 0,
-  },
-  {
-    name: "Apparel and Fashion Design Studio",
-    location: "Fashion Institutes",
-    image: "/images/apparel_fashion_studio.jpg", // Replace with actual image URL
-    description: "Discover the creative world of fashion design and production.",
-    capacity: 40,
-    booked: 0,
-  },
-  {
-    name: "Automobile Engineering Workshop",
-    location: "Engineering Colleges",
-    image: "/images/automobile_engineering_workshop.jpg", // Replace with actual image URL
-    description: "Get hands-on with vehicle design and engineering.",
-    capacity: 70,
-    booked: 0,
-  },
-  {
-    name: "Biomedical Engineering Lab",
-    location: "Various Universities",
-    image: "/images/biomedical_engineering_lab.jpg", // Replace with actual image URL
-    description: "See how engineering innovates healthcare solutions.",
-    capacity: 55,
-    booked: 0,
-  },
-  {
-    name: "Civil Engineering Structures Lab",
-    location: "Engineering Schools",
-    image: "/images/civil_engineering_lab.jpg", // Replace with actual image URL
-    description: "Understand the principles of structural design and testing.",
-    capacity: 80,
-    booked: 0,
-  },
-  {
-    name: "Computer Science & Engineering Lab",
-    location: "Tech Universities",
-    image: "/images/computer_science_lab.jpg", // Replace with actual image URL
-    description: "Experience cutting-edge computer systems and software development.",
-    capacity: 90,
-    booked: 0,
-  },
-  {
-    name: "Computer Applications Lab",
-    location: "Various Institutions",
-    image: "/images/computer_applications_lab.jpg", // Replace with actual image URL
-    description: "Explore practical applications of computer software.",
-    capacity: 100,
-    booked: 0,
-  },
-  {
-    name: "Electrical & Electronics Engineering Lab",
-    location: "Engineering Colleges",
-    image: "/images/electrical_engineering_lab.jpg", // Replace with actual image URL
-    description: "Witness experiments in electricity, electronics, and electromagnetism.",
-    capacity: 65,
-    booked: 0,
-  },
-  {
-    name: "Electronics & Communication Engineering Lab",
-    location: "Tech Universities",
-    image: "/images/electronics_communication_lab.jpg", // Replace with actual image URL
-    description: "Discover the world of electronic devices and communication systems.",
-    capacity: 75,
-    booked: 0,
-  },
-  {
-    name: "Instrumentation & Control Engineering Lab",
-    location: "Engineering Schools",
-    image: "/images/instrumentation_control_lab.jpg", // Replace with actual image URL
-    description: "See how instruments and control systems drive industrial processes.",
-    capacity: 45,
-    booked: 0,
-  },
-  {
-    name: "Mechanical Engineering Workshop",
-    location: "Engineering Colleges",
-    image: "/images/mechanical_engineering_workshop.jpg", // Replace with actual image URL
-    description: "Engage with the design and manufacturing of mechanical systems.",
-    capacity: 85,
-    booked: 0,
-  },
-  {
-    name: "Metallurgical Engineering Lab",
-    location: "Engineering Schools",
-    image: "/images/metallurgical_engineering_lab.jpg", // Replace with actual image URL
-    description: "Study the fascinating properties and processing of metals.",
-    capacity: 50,
-    booked: 0,
-  },
-  {
-    name: "Production Engineering Workshop",
-    location: "Various Institutions",
-    image: "/images/production_engineering_workshop.jpg", // Replace with actual image URL
-    description: "Understand the intricacies of modern production processes.",
-    capacity: 60,
-    booked: 0,
-  },
-  {
-    name: "Robotics & Automation Engineering Lab",
-    location: "Tech Universities",
-    image: "/images/robotics_automation_lab.jpg", // Replace with actual image URL
-    description: "Explore the exciting field of robotics and automation technologies.",
-    capacity: 70,
-    booked: 0,
-  },
-  {
-    name: "Biotechnology Lab",
-    location: "Various Universities",
-    image: "/images/biotechnology_lab.jpg", // Replace with actual image URL
-    description: "Witness the intersection of biology and technology.",
-    capacity: 55,
-    booked: 0,
-  },
-  {
-    name: "Fashion Technology Lab",
-    location: "Fashion Institutes",
-    image: "/images/fashion_technology_lab.jpg", // Replace with actual image URL
-    description: "Discover the technological advancements in the fashion industry.",
-    capacity: 40,
-    booked: 0,
-  },
-  {
-    name: "Information Technology Lab",
-    location: "Tech Universities",
-    image: "/images/information_technology_lab.jpg", // Replace with actual image URL
-    description: "Explore the management of information systems and data.",
-    capacity: 95,
-    booked: 0,
-  },
-  {
-    name: "Textile Technology Lab",
-    location: "Textile Institutes",
-    image: "/images/textile_technology_lab.jpg", // Replace with actual image URL
-    description: "Learn about the production and processing of textiles.",
-    capacity: 65,
-    booked: 0,
-  },
-  {
-    name: "Electrical & Electronics Engineering (Sandwich) Lab",
-    location: "Engineering Colleges",
-    image: "/images/electrical_sandwich_lab.jpg", // Replace with actual image URL
-    description: "Experience practical industrial training in electrical and electronics.",
-    capacity: 50,
-    booked: 0,
-  },
-  {
-    name: "Mechanical Engineering (Sandwich) Workshop",
-    location: "Engineering Schools",
-    image: "/images/mechanical_sandwich_workshop.jpg", // Replace with actual image URL
-    description: "Engage in industry-focused mechanical engineering practices.",
-    capacity: 70,
-    booked: 0,
-  },
-  {
-    name: "Production Engineering (Sandwich) Workshop",
-    location: "Various Institutions",
-    image: "/images/production_sandwich_workshop.jpg", // Replace with actual image URL
-    description: "Get hands-on with production processes in a real-world setting.",
-    capacity: 60,
-    booked: 0,
-  },
-];
+type Schedule = {
+  _id: string;
+  date: string;
+  capacity: number;
+};
 
-const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + i);
-const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('default', { month: 'long' }));
-const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
 export default function HomePage() {
-  const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [labs, setLabs] = useState<Lab[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [selectedLabForBooking, setSelectedLabForBooking] = useState<Department | null>(null);
   const [bookingFormData, setBookingFormData] = useState({
     institute: '',
     name: '',
@@ -215,32 +36,46 @@ export default function HomePage() {
     mobileNumber: '',
     proof: ''
   });
-  type Schedule = {
-    _id: string;
-    date: string;
-    capacity: number;
-  };
 
   const [availableSchedules, setAvailableSchedules] = useState<Schedule[]>([]);
   const [bookingError, setBookingError] = useState('');
+  const [departments, setDepartments] = useState([]);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [filteredLabsByDept, setFilteredLabsByDept] = useState<Record<string, Lab[]>>({});
   const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [emailVerificationStatus, setEmailVerificationStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
+
+  // Fetch labs from API
   useEffect(() => {
-    const savedDepartments = localStorage.getItem('openHouseDepartments');
-    if (savedDepartments) {
-      setDepartments(JSON.parse(savedDepartments));
-    }
+    const fetchLabs = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/lab/fetch-lab');
+        const data = await res.json();
+        setLabs(data.labs);
+
+        // Extract unique departments
+        const uniqueDepartments: any = [...new Set(data.labs.map((lab: Lab) => lab.departmentName))];
+        setDepartments(uniqueDepartments);
+      } catch (err) {
+        setError("Failed to fetch labs");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLabs();
   }, []);
+
+
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
         const res = await fetch('/api/schedule/fetch-schedule');
         const data = await res.json();
-        console.log("dta", data)
         setAvailableSchedules(Array.isArray(data.schedules) ? data.schedules : []);
       } catch (err) {
         console.error("Failed to fetch schedules", err);
@@ -249,36 +84,17 @@ export default function HomePage() {
     fetchSchedules();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('openHouseDepartments', JSON.stringify(departments));
-  }, [departments]);
 
   const handleInputChange = (e: any) => {
     setBookingFormData({ ...bookingFormData, [e.target.name]: e.target.value });
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    console.log("Entered into handleDateChange");
-    const scheduleId = e.target.value; // This is the _id of the selected schedule
-    console.log("avail", availableSchedules);
-    console.log("scheduleId", scheduleId);
-
-
-    // Find the selected schedule based on _id
+    const scheduleId = e.target.value;
     const schedule = availableSchedules.find((s) => s._id.toString() === scheduleId) || null;
-
-    // Update bookingFormData with the selected scheduleId
     setBookingFormData((prev) => ({ ...prev, scheduleId }));
-
-    // Log the schedule (it will contain the date and capacity)
-    console.log("Schedule", schedule);
-
-    // Set selectedSchedule based on the found schedule
     setSelectedSchedule(schedule);
   };
-
-
-
 
   const handleIdProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -301,10 +117,6 @@ export default function HomePage() {
     }
   };
 
-  const handleRegisterClick = () => {
-    setIsModalOpen(true);
-  };
-
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setBookingModalOpen(false);
@@ -325,9 +137,9 @@ export default function HomePage() {
 
   const handleVerifyEmail = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
     setEmailVerificationStatus("loading");
-  
+
     setTimeout(() => {
       if (emailRegex.test(bookingFormData.email)) {
         setEmailVerificationStatus("success");
@@ -338,17 +150,8 @@ export default function HomePage() {
       }
     }, 1000); // simulate async check delay
   };
-  
-  
-  const handleRegistrationSubmit = () => {
-    alert('Registration submitted!');
-    setIsModalOpen(false);
-    setRegistrationSuccess(true);
-    // You can add logic here to actually send the registration data
-  };
 
   const handleRequestVisit = () => {
-    // setSelectedLabForBooking(department);
     setBookingModalOpen(true);
     setBookingError('');
     setBookingFormData({
@@ -360,54 +163,6 @@ export default function HomePage() {
     setIdProofPreview(null);
   };
 
-  // const handleBookingSubmit = async () => {
-  //   if (!bookingFormData.idProofImage) return;
-
-  //   if (!selectedSchedule) {
-  //     alert("Please select a date.");
-  //     return;
-  //   }
-
-  //   if (parseInt(bookingFormData.students) > selectedSchedule.capacity) {
-  //     alert("Number of students exceeds the available capacity for the selected date.");
-  //     return;
-  //   }
-
-  //   try {
-  //     const formData = {
-  //       status: "pending",
-  //       eventData: {
-  //         email: bookingFormData.email,
-  //         institutionName: bookingFormData.institute,
-  //         schedule: bookingFormData.scheduleId,
-  //         numberOfMembers: bookingFormData.students,
-  //         representativeName: bookingFormData.name,
-  //         mobileNumber: bookingFormData.mobileNumber,
-  //         proof: bookingFormData.idProofImage, // Ensure this is handled in your upload logic
-  //       }
-  //     };
-
-  //     const res = await fetch("/api/request/create-request", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify(formData),
-  //     });
-
-  //     const result = await res.json();
-
-  //     if (res.ok) {
-  //       alert("Visit request submitted successfully!");
-  //       handleCloseModal();
-  //     } else {
-  //       throw new Error(result.error || "Failed to submit request");
-  //     }
-  //   } catch (err: any) {
-  //     console.error("Submit Error:", err);
-  //     setBookingError(err.message || "An unexpected error occurred.");
-  //   }
-  // };
   const handleBookingSubmit = async () => {
     if (!bookingFormData.idProofImage) return;
 
@@ -430,11 +185,10 @@ export default function HomePage() {
       formData.append("representativeName", bookingFormData.name);
       formData.append("mobileNumber", bookingFormData.mobileNumber);
       formData.append("proof", bookingFormData.idProofImage); // File object
-      console.log("Formdata", formData)
 
       const res = await fetch("/api/request/create-request", {
         method: "POST",
-        body: formData, // ✅ no headers
+        body: formData,
       });
 
       const result = await res.json();
@@ -461,9 +215,9 @@ export default function HomePage() {
       scheduleId,
       idProofImage,
     } = bookingFormData;
-  
+
     const studentCount = parseInt(students, 10);
-  
+
     return (
       institute.trim() &&
       name.trim() &&
@@ -476,27 +230,28 @@ export default function HomePage() {
       idProofImage
     );
   };
-  
 
-  const fetchAllSchedules = async () => {
-    try {
-      const res = await fetch("/api/schedule/all");
-      const data = await res.json();
+  useEffect(() => {
+    const filtered = labs.filter(lab => {
+      const matchesDepartment = selectedDepartment ? lab.departmentName === selectedDepartment : true;
+      const matchesSearch = search
+        ? lab.labName.toLowerCase().includes(search.toLowerCase()) ||
+        lab.description.toLowerCase().includes(search.toLowerCase())
+        : true;
+      return matchesDepartment && matchesSearch;
+    });
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch schedules");
-      }
+    // Group by department
+    const grouped = filtered.reduce((acc: Record<string, Lab[]>, lab) => {
+      if (!acc[lab.departmentName]) acc[lab.departmentName] = [];
+      acc[lab.departmentName].push(lab);
+      return acc;
+    }, {});
 
-      return data.schedules; // Array of { date, capacity }
-    } catch (error) {
-      console.error("Error fetching schedules:", error);
-      return [];
-    }
-  };
-  const filteredDepartments = departments.filter((dept) =>
-    (dept.name.toLowerCase().includes(search.toLowerCase()) || search === '') &&
-    (selectedDepartment === '' || dept.name === selectedDepartment)
-  );
+    setFilteredLabsByDept(grouped);
+  }, [labs, search, selectedDepartment]);
+
+
 
   return (
     <div className="h-screen bg-cover bg-center" style={{ backgroundImage: "url('/images/background.jpg')" }}>
@@ -511,9 +266,9 @@ export default function HomePage() {
           >
             <div className="flex items-center justify-center">
               <img
-                src="/images/logo.jpg" // Replace with the actual path if different
+                src="/images/logo.jpg"
                 alt="PSG Logo"
-                className="h-20 mr-4" // Adjust height as needed
+                className="h-20 mr-4"
               />
               <span className="text-5xl">PSG College of Technology</span>
               <br />
@@ -523,17 +278,16 @@ export default function HomePage() {
             <br />
             <br />
             <span className="text-3xl">PSG Open House 2025</span>
+            <br />
+            <br />
             <button
               onClick={() => handleRequestVisit()}
-              className={`bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end`}
-            // disabled={dept.capacity - dept.booked <= 0}
+              className="bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-600 transition-colors duration-200 self-end"
             >
               Request Visit
             </button>
           </motion.h1>
         </div>
-
-
 
         <div className="mt-6 w-full">
           <img src="/images/background.jpg"
@@ -559,35 +313,69 @@ export default function HomePage() {
           >
             <option value="">All Labs</option>
             {departments.map((dept) => (
-              <option key={dept.name} value={dept.name}>{dept.name}</option>
+              <option key={dept} value={dept}>{dept}</option>
             ))}
           </select>
         </div>
 
-        {/* Department Cards */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredDepartments.map((dept) => (
-            <motion.div
-              key={dept.name}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="bg-gray-900 p-6 rounded-lg shadow-md hover:shadow-lg flex flex-col justify-between"
-            >
-              <div>
-                <img src={dept.image} alt={dept.name} className="w-full h-48 object-cover rounded-md mb-4" />
-                <h2 className="text-xl font-semibold text-white mb-2 font-attractive">{dept.name}</h2>
-                <p className="text-gray-400 mb-2 text-sm">{dept.location}</p>
-                <p className="text-gray-300 mb-3 text-sm">{dept.description}</p>
-              </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="mt-10 flex justify-center">
+            <div className="text-white text-xl">Loading labs...</div>
+          </div>
+        )}
 
-            </motion.div>
-          ))}
-        </div>
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="mt-10 flex justify-center">
+            <div className="text-red-500 text-xl">Error: {error}</div>
+          </div>
+        )}
+        z
+
+        {/* Department Cards */}
+        {!isLoading && !error && Object.keys(filteredLabsByDept).length > 0 ? (
+          <div className="mt-10">
+            {Object.entries(filteredLabsByDept).map(([deptName, deptLabs]) => (
+              <div key={deptName}>
+                <h2 className="text-white text-2xl font-bold mb-4">{deptName}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {deptLabs.map((lab) => (
+                    <motion.div
+                      key={lab.labName}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="bg-gray-900 p-6 rounded-lg shadow-md hover:shadow-lg flex flex-col justify-between"
+                    >
+                      <img
+                        src={lab.image || "/images/default_lab.jpg"}
+                        alt={lab.labName}
+                        className="w-full h-48 object-cover rounded-md mb-4"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = "/images/default_lab.jpg";
+                        }}
+                      />
+                      <h3 className="text-xl font-semibold text-white mb-2">{lab.labName}</h3>
+                      <p className="text-gray-300 text-sm">{lab.description}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !isLoading && !error && (
+          <div className="mt-10 flex justify-center">
+            <p className="text-white text-xl">No labs found. Try adjusting your search.</p>
+          </div>
+        )}
+
 
         {/* Booking Modal */}
         {bookingModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -614,11 +402,10 @@ export default function HomePage() {
                 <button
                   onClick={handleVerifyEmail}
                   disabled={!bookingFormData.email}
-                  className={`px-4 py-2 rounded font-semibold ${
-                    bookingFormData.email
+                  className={`px-4 py-2 rounded font-semibold ${bookingFormData.email
                       ? "bg-yellow-500 text-white hover:bg-yellow-600"
                       : "bg-gray-500 text-white cursor-not-allowed"
-                  }`}                
+                    }`}
                 >
                   Verify
                 </button>
@@ -655,6 +442,7 @@ export default function HomePage() {
                   onChange={handleDateChange}
                   className="w-full p-3 rounded bg-gray-800 text-white font-light"
                 >
+                  <option value="">Select a date</option>
                   {Array.isArray(availableSchedules) && availableSchedules.length > 0 ? (
                     availableSchedules.map((schedule) => (
                       <option key={schedule._id} value={schedule._id}>
@@ -693,16 +481,14 @@ export default function HomePage() {
                 <button onClick={handleCloseModal} className="bg-red-500 text-white px-5 py-2 rounded-md font-semibold hover:bg-red-600">Cancel</button>
                 <button
                   onClick={handleBookingSubmit}
-                  className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${
-                    isFormValid() && isEmailVerified
+                  className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${isFormValid() && isEmailVerified
                       ? "bg-green-500 text-white hover:bg-green-600"
                       : "bg-gray-600 text-white cursor-not-allowed"
-                  }`}
+                    }`}
                   disabled={!(isFormValid() && isEmailVerified)}
                 >
                   Book Visit
                 </button>
-
               </div>
             </motion.div>
           </div>
