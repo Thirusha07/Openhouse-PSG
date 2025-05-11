@@ -2,22 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "../../../../../lib/mongodb";
 import Request from "../../../../../models/request";
 
-interface Params {
-  params: {
-    id: string;
-  };
-}
-
-export async function PATCH(req: NextRequest, { params }: Params) {
+// PATCH /api/request/[id]
+export async function PATCH(req: NextRequest, { params }: { params: Promise< { id: string }> }) {
   try {
     await connectDB();
-    const { id } = params;
+    const { id } = await params; // Get the id from params
     const { status } = await req.json();
 
+    // Validate status
     if (!["accepted", "declined", "pending"].includes(status)) {
       return NextResponse.json({ message: "Invalid status" }, { status: 400 });
     }
 
+    // Update the request status
     const updated = await Request.findByIdAndUpdate(id, { status }, { new: true });
     if (!updated) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });

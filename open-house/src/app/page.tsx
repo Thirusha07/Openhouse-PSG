@@ -39,7 +39,7 @@ export default function HomePage() {
 
   const [availableSchedules, setAvailableSchedules] = useState<Schedule[]>([]);
   const [bookingError, setBookingError] = useState('');
-  const [departments, setDepartments] = useState([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [filteredLabsByDept, setFilteredLabsByDept] = useState<Record<string, Lab[]>>({});
   const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
@@ -54,11 +54,13 @@ export default function HomePage() {
       try {
         setIsLoading(true);
         const res = await fetch('/api/lab/fetch-lab');
-        const data = await res.json();
+        const data: { labs: Lab[] } = await res.json();
         setLabs(data.labs);
 
         // Extract unique departments
-        const uniqueDepartments: any = [...new Set(data.labs.map((lab: Lab) => lab.departmentName))];
+        const uniqueDepartments: string[] = [
+        ...new Set(data.labs.map((lab) => lab.departmentName))
+      ];
         setDepartments(uniqueDepartments);
       } catch (err) {
         setError("Failed to fetch labs");
@@ -75,7 +77,7 @@ export default function HomePage() {
     const fetchSchedules = async () => {
       try {
         const res = await fetch('/api/schedule/fetch-schedule');
-        const data = await res.json();
+        const data: { schedules: Schedule[] } = await res.json();
         setAvailableSchedules(Array.isArray(data.schedules) ? data.schedules : []);
       } catch (err) {
         console.error("Failed to fetch schedules", err);

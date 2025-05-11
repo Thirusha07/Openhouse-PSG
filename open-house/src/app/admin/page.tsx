@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask } from 'react-icons/fa';
 import { FaComputer } from "react-icons/fa6";
 import clsx from 'clsx';
+import Image from 'next/image';
 
 const departments = [
     "APPLIED MATHEMATICS AND COMPUTATIONAL SCIENCES",
@@ -33,9 +34,30 @@ const departments = [
   ];
 
 export default function AdminPage() {
+    interface Schedule {
+        _id: string;
+        date: string;
+        capacity: number;
+    }
+
+    interface EventDetails {
+        _id: string;
+        institutionName: string;
+        representativeName: string;
+        email: string;
+        numberOfMembers: number;
+        mobileNumber: string;
+        schedule?: Schedule;
+    }
+
+    interface RequestData {
+        _id: string;
+        status: 'pending' | 'accepted' | 'declined';
+        event: EventDetails;
+    }
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [bookingRequests, setBookingRequests] = useState<any[]>([]);
-    const [schedules, setSchedules] = useState<any[]>([]);
+    const [bookingRequests, setBookingRequests] = useState<RequestData[]>([]);
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [activeView, setActiveView] = useState<'pending' | 'accepted' | 'schedules' | 'create-schedule' | 'add-labs' | 'view-labs'>('pending');
     const [toastMsg, setToastMsg] = useState<string>('');
     const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -350,7 +372,10 @@ export default function AdminPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(scheduleData),
+                body: JSON.stringify({
+                    ...scheduleData,
+                capacoty: Number(scheduleData.capacity),
+            }),
             });
 
             const data = await response.json();
@@ -361,7 +386,7 @@ export default function AdminPage() {
                 setActiveView('schedules'); // Return to schedule view
             } else {
                 // Handle error
-                setToastMsg('Failed to create schedule');
+                setToastMsg(data.message || 'Failed to create schedule');
                 setToastType('error');
             }
         } catch (error) {
@@ -734,10 +759,10 @@ export default function AdminPage() {
                         </div>
                     </div>
                 ) : activeView === 'view-labs' ? (
-                        <div className="w-full">
+                        <div className="container mx-auto px-2">
                             <h2 className="text-2xl font-bold mb-6 text-center text-white">All Labs</h2>
                             {/* Search and Filter */}
-                            <div className="mb-8 flex justify-center gap-4">
+                            <div className="mb-8 flex flex-col sm:flex-row justify-center gap-4">
                                 <input
                                     type="text"
                                     placeholder="Search labs..."
@@ -774,7 +799,7 @@ export default function AdminPage() {
                                     {Object.entries(filteredLabsByDept).map(([deptName, deptLabs]) => (
                                         <div key={deptName}>
                                             <h3 className="text-white text-xl font-bold mb-4">{deptName}</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                                 {deptLabs.map((lab) => (
                                                     <div
                                                         key={lab.labName}

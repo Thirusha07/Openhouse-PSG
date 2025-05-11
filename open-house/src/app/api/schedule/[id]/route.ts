@@ -10,7 +10,7 @@ interface Params {
 }
 
 // DELETE /api/schedule/[id]
-export async function DELETE(_req: Request, context: { params: { id: string } }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await context.params;
@@ -28,7 +28,7 @@ export async function DELETE(_req: Request, context: { params: { id: string } })
 }
 
 // PUT /api/schedule/[id]
-export async function PUT(req: Request, context: { params: { id: string } }) {
+export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await context.params;
