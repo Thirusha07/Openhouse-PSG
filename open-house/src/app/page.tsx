@@ -331,7 +331,7 @@ export default function HomePage() {
             <div className="text-red-500 text-xl">Error: {error}</div>
           </div>
         )}
-        z
+        
 
         {/* Department Cards */}
         {!isLoading && !error && Object.keys(filteredLabsByDept).length > 0 ? (
@@ -375,13 +375,13 @@ export default function HomePage() {
 
         {/* Booking Modal */}
         {bookingModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-gray-900 p-8 rounded-lg shadow-lg w-120 max-w-md"
+              className="bg-gray-900 p-8 rounded-lg shadow-lg w-120 max-w-md max-h-[90vh] overflow-y-auto"
             >
               <h2 className="text-2xl font-bold text-white mb-4 font-attractive">Request Visit </h2>
               <input type="text" name="institute" placeholder="Institute Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
@@ -424,16 +424,6 @@ export default function HomePage() {
                 maxLength={10}
                 required
               />
-              <input
-                type="number"
-                name="students"
-                placeholder="Number of Students (Max 100)"
-                value={bookingFormData.students}
-                onChange={handleInputChange}
-                className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light"
-                min="1"
-                max="100"
-              />
               <div className="mb-3">
                 <label className="block text-white mb-1">Select a Visit Date</label>
                 <select
@@ -459,6 +449,16 @@ export default function HomePage() {
                   </p>
                 )}
               </div>
+              <input
+                type="number"
+                name="students"
+                placeholder="Number of Students (Max 100)"
+                value={bookingFormData.students}
+                onChange={handleInputChange}
+                className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light"
+                min="1"
+                max="100"
+              />
               <div>
                 <label htmlFor="idProofImage" className="block text-gray-300 text-sm font-bold mb-2">Upload ID Proof Image (Max 2MB)</label>
                 <input
