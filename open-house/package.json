@@ -12,6 +12,7 @@
     "clsx": "^2.1.1",
     "formidable": "^3.5.4",
     "framer-motion": "^12.5.0",
+    "lucide-react": "^0.511.0",
     "mongoose": "^8.14.1",
     "next": "15.2.2",
     "nodemailer": "^7.0.3",

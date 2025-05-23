@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask } from 'react-icons/fa';
 import { FaComputer } from "react-icons/fa6";
 import clsx from 'clsx';
-import Image from 'next/image';
 
 const departments = [
     "APPLIED MATHEMATICS AND COMPUTATIONAL SCIENCES",
@@ -31,7 +30,7 @@ const departments = [
     "ELECTRICAL & ELECTRONICS ENGINEERING (SANDWICH)",
     "MECHANICAL ENGINEERING (SANDWICH)",
     "PRODUCTION ENGINEERING (SANDWICH)",
-  ];
+];
 
 export default function AdminPage() {
     interface Schedule {
@@ -86,6 +85,76 @@ export default function AdminPage() {
     const [scheduleToEdit, setScheduleToEdit] = useState<any>(null);
     const [editLoading, setEditLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+
+
+
+    //Login
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+
+    const handleLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (username === 'admin' && password === 'admin@123') {
+            setIsLoggedIn(true);
+            setLoginError('');
+        } else {
+            setLoginError('Invalid username or password');
+        }
+    };
+
+    const convertToCSV = (data: any[]) => {
+        if (data.length === 0) return '';
+
+        const headers = Object.keys(data[0]);
+        const csvRows = [
+            headers.join(','), // header row first
+            ...data.map(row =>
+                headers.map(fieldName => {
+                    // Escape quotes and commas properly
+                    const escaped = ('' + row[fieldName]).replace(/"/g, '""');
+                    return `"${escaped}"`;
+                }).join(',')
+            ),
+        ];
+
+        return csvRows.join('\n');
+    };
+    const filteredRequests = bookingRequests.filter(
+        r => r.status?.toLowerCase() === activeView
+    );
+    const acceptedRequests = filteredRequests.filter(r => r.status === 'accepted');
+
+    // Function to handle CSV download for all accepted requests
+    const handleDownloadCSV = () => {
+        // Prepare data for CSV (map only relevant fields)
+        console.log("Accepted requests:", acceptedRequests);
+        const csvData = acceptedRequests.map(r => ({
+            Institution: r.event?.institutionName,
+            Representative: r.event?.representativeName,
+            Email: r.event?.email,
+            Students: r.event?.numberOfMembers,
+            Mobile: r.event?.mobileNumber,
+            ScheduledDate: r.event?.schedule?.date
+                ? new Date(r.event.schedule.date).toLocaleDateString()
+                : '',
+            Status: r.status,
+        }));
+
+        const csvString = convertToCSV(csvData);
+
+        // Create a blob and trigger download
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'accepted_requests.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
     // Handler for opening edit modal
     const handleEditSchedule = (schedule: any) => {
         setScheduleToEdit({ ...schedule });
@@ -97,7 +166,7 @@ export default function AdminPage() {
         setEditModalOpen(false);
         setScheduleToEdit(null);
     };
-        // Handler for editing schedule
+    // Handler for editing schedule
     const handleUpdateSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!scheduleToEdit) return;
@@ -211,7 +280,7 @@ export default function AdminPage() {
                 setToastType('success');
                 setTimeout(() => {
                     window.location.reload();
-                  }, 1000);
+                }, 1000);
 
             } else {
                 throw new Error(data.error || data.message || 'Failed to add lab');
@@ -277,14 +346,14 @@ export default function AdminPage() {
         }
     }, [activeView]);
 
-     // View Labs: filter and group labs
+    // View Labs: filter and group labs
     useEffect(() => {
         if (!labs) return;
         const filtered = labs.filter((lab) => {
             const matchesDepartment = labDeptFilter ? lab.departmentName === labDeptFilter : true;
             const matchesSearch = labSearch
                 ? lab.labName.toLowerCase().includes(labSearch.toLowerCase()) ||
-                  lab.description.toLowerCase().includes(labSearch.toLowerCase())
+                lab.description.toLowerCase().includes(labSearch.toLowerCase())
                 : true;
             return matchesDepartment && matchesSearch;
         });
@@ -374,8 +443,8 @@ export default function AdminPage() {
                 },
                 body: JSON.stringify({
                     ...scheduleData,
-                capacoty: Number(scheduleData.capacity),
-            }),
+                    capacoty: Number(scheduleData.capacity),
+                }),
             });
 
             const data = await response.json();
@@ -396,22 +465,60 @@ export default function AdminPage() {
         }
     };
 
-    const filteredRequests = bookingRequests.filter(
-        r => r.status?.toLowerCase() === activeView
-    );
+
     //console.log("Booking requests:", bookingRequests);
 
     const sidebarWidth = sidebarOpen ? 256 : 64; // px
 
     return (
-        <div className="flex min-h-screen bg-gray-900 text-white">
+        <>  {!isLoggedIn ? (
+            <div className="flex justify-center items-center min-h-screen bg-gray-900">
+                <form
+                    onSubmit={handleLogin}
+                    className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full"
+                >
+                    <h2 className="text-2xl font-bold mb-6 text-center text-white">Admin Login</h2>
+                    {loginError && (
+                        <p className="text-red-500 mb-4 text-center">{loginError}</p>
+                    )}
+                    <div className="mb-4">
+                        <label className="block text-gray-400 mb-1">Username</label>
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full p-2 rounded-md bg-gray-700 text-white"
+                            required
+                            autoFocus
+                        />
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-gray-400 mb-1">Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full p-2 rounded-md bg-gray-700 text-white"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold"
+                    >
+                        Login
+                    </button>
+                </form>
+            </div>
+        ) : (<div className="flex min-h-screen bg-gray-900 text-white">
             {/* Sidebar */}
+
             <div
                 className={clsx(
                     'fixed top-0 left-0 h-full bg-gray-800 p-4 transition-all duration-300 z-30 space-y-6',
                     sidebarOpen ? 'w-64' : 'w-16'
                 )}
-                style={{ width: sidebarWidth}}
+                style={{ width: sidebarWidth }}
             >
                 <button
                     className="text-white mb-4 text-xl"
@@ -485,13 +592,13 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveView('view-labs')}
                         className={clsx(
-                                'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
-                                activeView === 'view-labs'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            )}
+                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            activeView === 'view-labs'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        )}
                     >
-                        <FaComputer className='text-lg'/>
+                        <FaComputer className='text-lg' />
                         {sidebarOpen && <span>View Labs</span>}
                     </button>
 
@@ -509,14 +616,14 @@ export default function AdminPage() {
             )}
 
             {/* Main Content */}
-            <div 
-               className="pl-16 transition-all duration-300 flex flex-col min-h-screen w-full"
+            <div
+                className="pl-16 transition-all duration-300 flex flex-col min-h-screen w-full"
                 style={{
                     marginLeft: sidebarWidth,
                 }}
             >
-            
-               {/* Always show header at the top and centered */}
+
+                {/* Always show header at the top and centered */}
                 <div className="w-full flex justify-center mt-8 mb-4">
                     <div className="text-center">
                         <img src="/images/logo.jpg" alt="PSG Logo" className="mx-auto h-20" />
@@ -524,241 +631,241 @@ export default function AdminPage() {
                     </div>
                 </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center w-full">
-                {activeView === 'create-schedule' ? (
-                    <div className="flex justify-center items-center min-h-screen">
-                        <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
-                            <h2 className="text-2xl font-bold mb-4 text-center text-white">Create Event Schedule</h2>
+                <div className="flex-1 flex flex-col items-center justify-center w-full">
+                    {activeView === 'create-schedule' ? (
+                        <div className="flex justify-center items-center min-h-screen">
+                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+                                <h2 className="text-2xl font-bold mb-4 text-center text-white">Create Event Schedule</h2>
 
-                            <form onSubmit={handleCreateSchedule} className="space-y-4">
-                                <div>
-                                    <label className="block text-gray-400">Event Date</label>
-                                    <input
-                                        type="date"
-                                        value={scheduleData.date}
-                                        onChange={(e) => setScheduleData({ ...scheduleData, date: e.target.value })}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-gray-400">Capacity</label>
-                                    <input
-                                        type="number"
-                                        value={scheduleData.capacity}
-                                        onChange={(e) => setScheduleData({ ...scheduleData, capacity: e.target.value })}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex justify-center gap-4">
-                                    <button
-                                        type="submit"
-                                        className="bg-green-600 px-6 py-2 rounded-md text-white hover:bg-green-700"
-                                    >
-                                        Create Schedule
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveView('schedules')}
-                                        className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                ) : activeView === 'schedules' ? (
-                    <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-2xl">
-                        <h2 className="text-2xl font-bold mb-4 text-center text-white">Event Schedules</h2>
-                        {schedulesLoading ? (
-                            <div className="flex justify-center items-center py-8">
-                                <span className="text-gray-400 text-lg">Loading schedules...</span>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                {schedules.length === 0 ? (
-                                    <div className="flex justify-center items-center py-8">
-                                        <span className="text-gray-400 text-lg">No schedules found.</span>
+                                <form onSubmit={handleCreateSchedule} className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-400">Event Date</label>
+                                        <input
+                                            type="date"
+                                            value={scheduleData.date}
+                                            onChange={(e) => setScheduleData({ ...scheduleData, date: e.target.value })}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            required
+                                        />
                                     </div>
-                                ) : (
-                                    <table className="min-w-full text-left border border-gray-600">
-                                        <thead className="bg-gray-700">
-                                            <tr>
-                                                <th className="px-4 py-2 border-r border-gray-600">Date</th>
-                                                <th className="px-4 py-2 border-r border-gray-600">Capacity</th>
-                                                <th className="px-4 py-2">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {schedules.map((schedule) => (
-                                                <tr key={schedule._id} className="border-t border-gray-600">
-                                                    <td className="px-4 py-2 border-r border-gray-600">
-                                                        {new Date(schedule.date).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-4 py-2 border-r border-gray-600">{schedule.capacity}</td>
-                                                    <td className="px-4 py-2 flex gap-3">
-                                                        <button
-                                                            className="text-blue-400 hover:text-blue-600"
-                                                            onClick={() => handleEditSchedule(schedule)}
-                                                            title="Edit"
-                                                        >
-                                                            <FaEdit />
-                                                        </button>
-                                                        <button
-                                                            className="text-red-400 hover:text-red-600"
-                                                            onClick={() => handleDeleteSchedule(schedule._id)}
-                                                            disabled={deleteLoading === schedule._id}
-                                                            title="Delete"
-                                                        >
-                                                            {deleteLoading === schedule._id ? (
-                                                                <span className="animate-spin">⏳</span>
-                                                            ) : (
-                                                                <FaTrash />
-                                                            )}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
+                                    <div>
+                                        <label className="block text-gray-400">Capacity</label>
+                                        <input
+                                            type="number"
+                                            value={scheduleData.capacity}
+                                            onChange={(e) => setScheduleData({ ...scheduleData, capacity: e.target.value })}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex justify-center gap-4">
+                                        <button
+                                            type="submit"
+                                            className="bg-green-600 px-6 py-2 rounded-md text-white hover:bg-green-700"
+                                        >
+                                            Create Schedule
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveView('schedules')}
+                                            className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
-                        )}
-                        {/* Edit Modal */}
-                        {editModalOpen && scheduleToEdit && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full">
-                                    <h2 className="text-xl font-bold mb-4 text-center text-white">Edit Schedule</h2>
-                                    <form onSubmit={handleUpdateSchedule} className="space-y-4">
-                                        <div>
-                                            <label className="block text-gray-400">Event Date</label>
-                                            <input
-                                                type="date"
-                                                value={scheduleToEdit.date?.slice(0, 10) || ''}
-                                                onChange={(e) =>
-                                                    setScheduleToEdit((prev: any) => ({
-                                                        ...prev,
-                                                        date: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400">Capacity</label>
-                                            <input
-                                                type="number"
-                                                value={scheduleToEdit.capacity}
-                                                onChange={(e) =>
-                                                    setScheduleToEdit((prev: any) => ({
-                                                        ...prev,
-                                                        capacity: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="flex justify-center gap-4">
-                                            <button
-                                                type="submit"
-                                                className="bg-blue-600 px-6 py-2 rounded-md text-white hover:bg-blue-700"
-                                                disabled={editLoading}
-                                            >
-                                                {editLoading ? 'Saving...' : 'Save'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleCloseEditModal}
-                                                className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
-                                                disabled={editLoading}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    
-                ) : activeView === 'add-labs' ? (
-                    <div className="flex justify-center items-center min-h-screen">
-                        <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
-                            <h2 className="text-2xl font-bold mb-4 text-center text-white">Add Lab Details</h2>
-                            <form
-                                onSubmit={handleAddLab}
-                                className="space-y-4"
-                                encType="multipart/form-data"
-                            >
-                                <div>
-                                    <label className="block text-gray-400">Lab Name</label>
-                                    <input
-                                        type="text"
-                                        value={labForm.labName}
-                                        onChange={(e) => setLabForm({ ...labForm, labName: e.target.value })}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-gray-400">Department</label>
-                                    <select
-                                        value={labForm.department}
-                                        onChange={(e) => setLabForm({ ...labForm, department: e.target.value })}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        required
-                                    >
-                                        <option value="" disabled>Select a department</option>
-                                        {departments.map((dept) => (
-                                            <option key={dept} value={dept}>
-                                                {dept}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-400">Description</label>
-                                    <textarea
-                                        value={labForm.description}
-                                        onChange={(e) => setLabForm({ ...labForm, description: e.target.value })}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        rows={3}
-                                        required
-                                    ></textarea>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-400">Upload Image</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0] || null;
-                                            setLabForm({ ...labForm, image: file });
-                                            if (file) {
-                                                console.log("Selected file:", file.name, "Size:", file.size, "Type:", file.type);
-                                            }
-                                        }}
-                                        className="w-full p-2 bg-gray-700 text-white rounded-md"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex justify-center">
-                                    <button
-                                        type="submit"
-                                        className={`bg-blue-600 px-6 py-2 rounded-md text-white ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-                                        disabled={loading}
-                                    >
-                                        {loading ? 'Adding...' : 'Add Lab'}
-                                    </button>
-                                </div>
-                            </form>
                         </div>
-                    </div>
-                ) : activeView === 'view-labs' ? (
+                    ) : activeView === 'schedules' ? (
+                        <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-2xl">
+                            <h2 className="text-2xl font-bold mb-4 text-center text-white">Event Schedules</h2>
+                            {schedulesLoading ? (
+                                <div className="flex justify-center items-center py-8">
+                                    <span className="text-gray-400 text-lg">Loading schedules...</span>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    {schedules.length === 0 ? (
+                                        <div className="flex justify-center items-center py-8">
+                                            <span className="text-gray-400 text-lg">No schedules found.</span>
+                                        </div>
+                                    ) : (
+                                        <table className="min-w-full text-left border border-gray-600">
+                                            <thead className="bg-gray-700">
+                                                <tr>
+                                                    <th className="px-4 py-2 border-r border-gray-600">Date</th>
+                                                    <th className="px-4 py-2 border-r border-gray-600">Capacity</th>
+                                                    <th className="px-4 py-2">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {schedules.map((schedule) => (
+                                                    <tr key={schedule._id} className="border-t border-gray-600">
+                                                        <td className="px-4 py-2 border-r border-gray-600">
+                                                            {new Date(schedule.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-4 py-2 border-r border-gray-600">{schedule.capacity}</td>
+                                                        <td className="px-4 py-2 flex gap-3">
+                                                            <button
+                                                                className="text-blue-400 hover:text-blue-600"
+                                                                onClick={() => handleEditSchedule(schedule)}
+                                                                title="Edit"
+                                                            >
+                                                                <FaEdit />
+                                                            </button>
+                                                            <button
+                                                                className="text-red-400 hover:text-red-600"
+                                                                onClick={() => handleDeleteSchedule(schedule._id)}
+                                                                disabled={deleteLoading === schedule._id}
+                                                                title="Delete"
+                                                            >
+                                                                {deleteLoading === schedule._id ? (
+                                                                    <span className="animate-spin">⏳</span>
+                                                                ) : (
+                                                                    <FaTrash />
+                                                                )}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            )}
+                            {/* Edit Modal */}
+                            {editModalOpen && scheduleToEdit && (
+                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full">
+                                        <h2 className="text-xl font-bold mb-4 text-center text-white">Edit Schedule</h2>
+                                        <form onSubmit={handleUpdateSchedule} className="space-y-4">
+                                            <div>
+                                                <label className="block text-gray-400">Event Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={scheduleToEdit.date?.slice(0, 10) || ''}
+                                                    onChange={(e) =>
+                                                        setScheduleToEdit((prev: any) => ({
+                                                            ...prev,
+                                                            date: e.target.value,
+                                                        }))
+                                                    }
+                                                    className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-gray-400">Capacity</label>
+                                                <input
+                                                    type="number"
+                                                    value={scheduleToEdit.capacity}
+                                                    onChange={(e) =>
+                                                        setScheduleToEdit((prev: any) => ({
+                                                            ...prev,
+                                                            capacity: e.target.value,
+                                                        }))
+                                                    }
+                                                    className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="flex justify-center gap-4">
+                                                <button
+                                                    type="submit"
+                                                    className="bg-blue-600 px-6 py-2 rounded-md text-white hover:bg-blue-700"
+                                                    disabled={editLoading}
+                                                >
+                                                    {editLoading ? 'Saving...' : 'Save'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCloseEditModal}
+                                                    className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
+                                                    disabled={editLoading}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                    ) : activeView === 'add-labs' ? (
+                        <div className="flex justify-center items-center min-h-screen">
+                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+                                <h2 className="text-2xl font-bold mb-4 text-center text-white">Add Lab Details</h2>
+                                <form
+                                    onSubmit={handleAddLab}
+                                    className="space-y-4"
+                                    encType="multipart/form-data"
+                                >
+                                    <div>
+                                        <label className="block text-gray-400">Lab Name</label>
+                                        <input
+                                            type="text"
+                                            value={labForm.labName}
+                                            onChange={(e) => setLabForm({ ...labForm, labName: e.target.value })}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400">Department</label>
+                                        <select
+                                            value={labForm.department}
+                                            onChange={(e) => setLabForm({ ...labForm, department: e.target.value })}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            required
+                                        >
+                                            <option value="" disabled>Select a department</option>
+                                            {departments.map((dept) => (
+                                                <option key={dept} value={dept}>
+                                                    {dept}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400">Description</label>
+                                        <textarea
+                                            value={labForm.description}
+                                            onChange={(e) => setLabForm({ ...labForm, description: e.target.value })}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            rows={3}
+                                            required
+                                        ></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400">Upload Image</label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] || null;
+                                                setLabForm({ ...labForm, image: file });
+                                                if (file) {
+                                                    console.log("Selected file:", file.name, "Size:", file.size, "Type:", file.type);
+                                                }
+                                            }}
+                                            className="w-full p-2 bg-gray-700 text-white rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <button
+                                            type="submit"
+                                            className={`bg-blue-600 px-6 py-2 rounded-md text-white ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                                            disabled={loading}
+                                        >
+                                            {loading ? 'Adding...' : 'Add Lab'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    ) : activeView === 'view-labs' ? (
                         <div className="container mx-auto px-2">
                             <h2 className="text-2xl font-bold mb-6 text-center text-white">All Labs</h2>
                             {/* Search and Filter */}
@@ -829,87 +936,96 @@ export default function AdminPage() {
                                 </div>
                             )}
                         </div>
-                    ) : 
-                    (
-                        <>
-                            <h2 className="text-2xl font-bold mt-8 mb-4">
-                                {activeView === 'pending' && 'Pending Visit Requests'}
-                                {activeView === 'accepted' && 'Accepted Visit Requests'}
-                            </h2>
-                            {requestsLoading ? (
-                                <div className="flex justify-center items-center py-8">
-                                    <span className="text-gray-400 text-lg">Loading data...</span>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {filteredRequests.length === 0 ? (
-                                        <p className="text-gray-400">No {activeView} requests found.</p>
-                                    ) : (
-                                        filteredRequests.map(request => (
-                                            <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
-                                                <div className="absolute top-3 right-3">
-                                                    {request.status === 'pending' && <FaClock className="text-yellow-400" />}
-                                                    {request.status === 'accepted' && (
-                                                        <span className="text-green-400 font-semibold text-sm">Accepted</span>
-                                                    )}
-                                                </div>
-                                                <p>
-                                                    <span className="text-gray-400">Institution:</span>{' '}
-                                                    <span className="text-white font-light">{request.event?.institutionName}</span>
-                                                </p>
-                                                <p>
-                                                    <span className="text-gray-400">Representative:</span>{' '}
-                                                    <span className="text-white font-light">{request.event?.representativeName}</span>
-                                                </p>
-                                                <p>
-                                                    <span className="text-gray-400">Email:</span>{' '}
-                                                    <span className="text-white font-light">{request.event?.email}</span>
-                                                </p>
-                                                <p>
-                                                    <span className="text-gray-400">Students:</span>{' '}
-                                                    <span className="text-white font-light">{request.event?.numberOfMembers}</span>
-                                                </p>
-                                                <p>
-                                                    <span className="text-gray-400">Mobile:</span>{' '}
-                                                    <span className="text-white font-light">{request.event?.mobileNumber}</span>
-                                                </p>
-                                                {request.status === 'accepted' && request.event?.schedule?.date && (
+                    ) :
+                        (
+                            <>
+                                <h2 className="text-2xl font-bold mt-8 mb-4">
+                                    {activeView === 'pending' && 'Pending Visit Requests'}
+                                    {activeView === 'accepted' && 'Accepted Visit Requests'}
+                                </h2>
+                                {activeView === 'accepted' && (
+                                    <button
+                                        onClick={handleDownloadCSV}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 mt-8 mb-4 rounded-md"
+                                    >
+                                        Download CSV
+                                    </button>
+                                )}
+                                {requestsLoading ? (
+                                    <div className="flex justify-center items-center py-8">
+                                        <span className="text-gray-400 text-lg">Loading data...</span>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {filteredRequests.length === 0 ? (
+                                            <p className="text-gray-400">No {activeView} requests found.</p>
+                                        ) : (
+                                            filteredRequests.map(request => (
+                                                <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
+                                                    <div className="absolute top-3 right-3">
+                                                        {request.status === 'pending' && <FaClock className="text-yellow-400" />}
+                                                        {request.status === 'accepted' && (
+                                                            <span className="text-green-400 font-semibold text-sm">Accepted</span>
+                                                        )}
+                                                    </div>
                                                     <p>
-                                                        <span className="text-gray-400">Scheduled Date:</span>{' '}
-                                                        <span className="text-white font-light">
-                                                            {new Date(request.event.schedule.date).toLocaleDateString()}
-                                                        </span>
+                                                        <span className="text-gray-400">Institution:</span>{' '}
+                                                        <span className="text-white font-light">{request.event?.institutionName}</span>
                                                     </p>
-                                                )}
-                                                <div className="mt-4 flex gap-2">
-                                                    {request.status === 'pending' ? (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleDecision(request._id, 'accepted')}
-                                                                className="bg-green-600 px-3 py-1 rounded-md text-sm hover:bg-green-700"
-                                                            >
-                                                                Accept
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDecision(request._id, 'declined')}
-                                                                className="bg-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-700"
-                                                            >
-                                                                Decline
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-sm text-green-400 font-semibold">Approved</span>
+                                                    <p>
+                                                        <span className="text-gray-400">Representative:</span>{' '}
+                                                        <span className="text-white font-light">{request.event?.representativeName}</span>
+                                                    </p>
+                                                    <p>
+                                                        <span className="text-gray-400">Email:</span>{' '}
+                                                        <span className="text-white font-light">{request.event?.email}</span>
+                                                    </p>
+                                                    <p>
+                                                        <span className="text-gray-400">Students:</span>{' '}
+                                                        <span className="text-white font-light">{request.event?.numberOfMembers}</span>
+                                                    </p>
+                                                    <p>
+                                                        <span className="text-gray-400">Mobile:</span>{' '}
+                                                        <span className="text-white font-light">{request.event?.mobileNumber}</span>
+                                                    </p>
+                                                    {request.status === 'accepted' && request.event?.schedule?.date && (
+                                                        <p>
+                                                            <span className="text-gray-400">Scheduled Date:</span>{' '}
+                                                            <span className="text-white font-light">
+                                                                {new Date(request.event.schedule.date).toLocaleDateString()}
+                                                            </span>
+                                                        </p>
                                                     )}
+                                                    <div className="mt-4 flex gap-2">
+                                                        {request.status === 'pending' ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleDecision(request._id, 'accepted')}
+                                                                    className="bg-green-600 px-3 py-1 rounded-md text-sm hover:bg-green-700"
+                                                                >
+                                                                    Accept
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDecision(request._id, 'declined')}
+                                                                    className="bg-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-700"
+                                                                >
+                                                                    Decline
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-sm text-green-400 font-semibold">Approved</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            )}
-                        </>
-                    )}
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
                 </div>
             </div>
-        </div>
+        </div>)}</>
+
     );
 }

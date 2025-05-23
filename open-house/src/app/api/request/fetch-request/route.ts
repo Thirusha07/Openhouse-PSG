@@ -10,7 +10,14 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get("status"); // Get the status query param
     const query = status ? { status } : {}; // If no status provided, fetch all
 
-    const requests = await Request.find(query).populate("event").exec();
+    const requests = await Request.find(query)
+  .populate({
+    path: "event",
+    populate: {
+      path: "schedule", // this populates the schedule inside each event
+    },
+  })
+  .exec();
 
     return NextResponse.json({ success: true, requests });
   } catch (error) {
