@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 type Schedule = {
@@ -21,13 +21,13 @@ export default function ScheduleYourVisitPage() {
     email: '',
     students: '',
     scheduleId: '',
-    idProofImage: null as File | null,
+    idProof: null as File | null,
+    studentList: null as File | null,
     mobileNumber: '',
-    proof: ''
   });
 
-  const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState('');
+  const [bookingStatus, setBookingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [emailVerificationStatus, setEmailVerificationStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
@@ -51,27 +51,28 @@ export default function ScheduleYourVisitPage() {
   const handleDateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const scheduleId = e.target.value;
     const schedule = availableSchedules.find((s) => s._id.toString() === scheduleId) || null;
-    setBookingFormData((prev) => ({ ...prev, scheduleId }));
+    const currentStudents = parseInt(bookingFormData.students, 10);
+
+    if (schedule && !isNaN(currentStudents) && currentStudents > schedule.capacity) {
+      setBookingFormData((prev) => ({ ...prev, scheduleId, students: '' }));
+    } else {
+      setBookingFormData((prev) => ({ ...prev, scheduleId }));
+    }
     setSelectedSchedule(schedule);
   };
 
-  const handleIdProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.size > 2 * 1024 * 1024) {
-      setBookingError('Image size must be less than 2MB.');
-      setBookingFormData({ ...bookingFormData, idProofImage: null });
-      setIdProofPreview(null);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    const file = files?.[0] || null;
+
+    if (file && file.size > 2 * 1024 * 1024) { // 2MB limit
+      setBookingError(`File ${file.name} exceeds 2MB size limit.`);
+      setBookingFormData(prev => ({ ...prev, [name]: null }));
       return;
     }
-    setBookingFormData({ ...bookingFormData, idProofImage: file });
+
+    setBookingFormData(prev => ({ ...prev, [name]: file }));
     setBookingError('');
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setIdProofPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    } else {
-      setIdProofPreview(null);
-    }
   };
 
   const handleVerifyEmail = () => {
@@ -89,20 +90,51 @@ export default function ScheduleYourVisitPage() {
   };
 
   const handleBookingSubmit = async () => {
-    if (!bookingFormData.idProofImage) return;
-    if (!selectedSchedule) {
-      alert('Please select a date.');
-      return;
+    if (!isFormValid() || !isEmailVerified) return;
+
+    setBookingStatus('loading');
+    setBookingError('');
+
+    const formData = new FormData();
+    formData.append('institutionName', bookingFormData.institute);
+    formData.append('representativeName', bookingFormData.name);
+    formData.append('email', bookingFormData.email);
+    formData.append('mobileNumber', bookingFormData.mobileNumber);
+    formData.append('numberOfMembers', bookingFormData.students);
+    formData.append('scheduleId', bookingFormData.scheduleId);
+    if (bookingFormData.idProof) {
+      formData.append('idProof', bookingFormData.idProof);
     }
-    if (parseInt(bookingFormData.students) > selectedSchedule.capacity) {
-      alert('Number of students exceeds the available capacity for the selected date.');
-      return;
+    if (bookingFormData.studentList) {
+      formData.append('studentList', bookingFormData.studentList);
     }
-    alert('Visit request submitted successfully!');
+
+    try {
+      const res = await fetch('/api/request/create-request', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setBookingStatus('success');
+        alert('Visit request submitted successfully! You will receive a confirmation email.');
+        // Optionally reset form or redirect user
+      } else {
+        throw new Error(data.error || 'Failed to submit booking request.');
+      }
+    } catch (err: any) {
+      setBookingStatus('error');
+      setBookingError(err.message);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setBookingStatus('idle');
+    }
   };
 
   const isFormValid = () => {
-    const { institute, name, email, mobileNumber, students, scheduleId, idProofImage } = bookingFormData;
+    const { institute, name, email, mobileNumber, students, scheduleId, idProof, studentList } = bookingFormData;
     const studentCount = parseInt(students, 10);
     return (
       institute.trim() &&
@@ -111,9 +143,10 @@ export default function ScheduleYourVisitPage() {
       mobileNumber.trim().length === 10 &&
       !isNaN(studentCount) &&
       studentCount > 0 &&
-      studentCount <= 20 &&
+      (!selectedSchedule || studentCount <= selectedSchedule.capacity) &&
       Boolean(scheduleId) &&
-      Boolean(idProofImage)
+      Boolean(idProof) &&
+      Boolean(studentList)
     );
   };
 
@@ -194,7 +227,7 @@ export default function ScheduleYourVisitPage() {
                 )}
               </select>
               {selectedSchedule && (
-                <p className="text-sm text-gray-300 mt-1">Capacity: {selectedSchedule.capacity}</p>
+                <p className="text-sm text-gray-300 mt-1">Available Seats: {selectedSchedule.capacity}</p>
               )}
             </div>
 
@@ -208,30 +241,65 @@ export default function ScheduleYourVisitPage() {
               >
                 <option value="" disabled>Select number of students</option>
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
-                  <option key={num} value={num}>
+                  <option key={num} value={num} disabled={selectedSchedule ? num > selectedSchedule.capacity : false}>
                     {num}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label htmlFor="idProofImage" className="block text-gray-300 text-sm font-bold mb-2">Upload ID Proof Image (Max 2MB)</label>
-              <input type="file" id="idProofImage" name="idProofImage" accept="image/*" onChange={handleIdProofChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
-              {idProofPreview && (
-                <div className="mt-2">
-                  <h4 className="text-gray-300 text-sm font-semibold">ID Proof Preview:</h4>
-                  <img src={idProofPreview} alt="ID Proof Preview" className="max-w-full h-auto rounded-md" style={{ maxHeight: '100px' }} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              <div>
+                <label htmlFor="idProof" className="block text-gray-300 text-sm font-bold mb-2">
+                  Upload ID Proof (PDF, Max 2MB)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="idProof"
+                    name="idProof"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-center w-full p-3 rounded bg-gray-800 text-white font-light border-2 border-dashed border-gray-600 hover:border-blue-500 transition-colors">
+                    <FileText className="w-6 h-6 mr-2 text-gray-400" />
+                    <span>{bookingFormData.idProof ? bookingFormData.idProof.name : 'Choose a file'}</span>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              <div>
+                <label htmlFor="studentList" className="block text-gray-300 text-sm font-bold mb-2">
+                  Upload Student List (PDF, Max 2MB)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="studentList"
+                    name="studentList"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-center w-full p-3 rounded bg-gray-800 text-white font-light border-2 border-dashed border-gray-600 hover:border-blue-500 transition-colors">
+                    <FileText className="w-6 h-6 mr-2 text-gray-400" />
+                    <span>{bookingFormData.studentList ? bookingFormData.studentList.name : 'Choose a file'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {bookingError && <p className="text-red-500 mb-3">{bookingError}</p>}
 
             <div className="flex justify-end gap-4 mt-4">
               <Link href="/" className="bg-red-500 text-white px-5 py-2 rounded-md font-semibold hover:bg-red-600">Cancel</Link>
-              <button onClick={handleBookingSubmit} className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${isFormValid() && isEmailVerified ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-600 text-white cursor-not-allowed'}`} disabled={!(isFormValid() && isEmailVerified)}>
-                Book Visit
+              <button
+                onClick={handleBookingSubmit}
+                className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${isFormValid() && isEmailVerified ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-600 text-white cursor-not-allowed'}`}
+                disabled={!(isFormValid() && isEmailVerified) || bookingStatus === 'loading'}
+              >
+                {bookingStatus === 'loading' ? 'Booking...' : 'Book Visit'}
               </button>
             </div>
           </motion.div>

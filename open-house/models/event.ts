@@ -27,10 +27,14 @@ const eventSchema = new Schema({
     type: String,
     required: true
   },
-  proof: {
-    type: String // URL or path to document
+  idProof: {
+    type: String, // base64 encoded string of the ID proof
+    required: true
+  },
+  studentList: {
+    type: String, // base64 encoded string of the student list
+    required: true
   }
-  
 }, { timestamps: true });
 
 const Event = models.Event || model("Event", eventSchema);

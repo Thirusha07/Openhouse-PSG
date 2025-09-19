@@ -74,18 +74,23 @@ export async function POST(req: NextRequest) {
     const numberOfMembers = parseInt(formData.get("numberOfMembers") as string);
     const representativeName = formData.get("representativeName") as string;
     const mobileNumber = formData.get("mobileNumber") as string;
-    console.log("MobileNUM",mobileNumber)
 
-    const file = formData.get("proof") as File;
+    const idProofFile = formData.get("idProof") as File | null;
+    const studentListFile = formData.get("studentList") as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    if (!idProofFile) {
+      return NextResponse.json({ error: "ID proof file is required." }, { status: 400 });
+    }
+    if (!studentListFile) {
+      return NextResponse.json({ error: "Student list file is required." }, { status: 400 });
     }
 
-    // Convert the file to a base64 string
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const proof_img = buffer.toString("base64");
-    console.log("proofimg",proof_img)
+    // Convert the files to base64 strings
+    const idProofBuffer = Buffer.from(await idProofFile.arrayBuffer());
+    const idProofBase64 = idProofBuffer.toString("base64");
+
+    const studentListBuffer = Buffer.from(await studentListFile.arrayBuffer());
+    const studentListBase64 = studentListBuffer.toString("base64");
 
     // Create Event
     const newEvent = await Event.create({
@@ -95,7 +100,8 @@ export async function POST(req: NextRequest) {
       numberOfMembers,
       representativeName,
       mobileNumber,
-      proof:proof_img,
+      idProof: idProofBase64,
+      studentList: studentListBase64,
     });
 
     // Create Request
