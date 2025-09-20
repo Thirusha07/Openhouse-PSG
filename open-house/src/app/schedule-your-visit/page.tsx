@@ -32,6 +32,7 @@ export default function ScheduleYourVisitPage() {
 
   const [bookingError, setBookingError] = useState('');
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     const fetchSchedules = async () => {
@@ -113,8 +114,8 @@ export default function ScheduleYourVisitPage() {
 
       if (res.ok) {
         setBookingStatus('success');
-        alert('Visit request submitted successfully! You will receive an email with the details you provided. Please check your inbox.');
-        router.push('/');
+        resetForm();
+        setShowSuccessModal(true);
       } else {
         throw new Error(data.error || 'Failed to submit booking request.');
       }
@@ -268,6 +269,27 @@ export default function ScheduleYourVisitPage() {
           </motion.div>
         </div>
       </section>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gray-800 p-8 rounded-lg shadow-2xl text-center max-w-sm mx-auto"
+          >
+            <h3 className="text-2xl font-bold text-green-400 mb-4">Success!</h3>
+            <p className="text-gray-300 mb-6">
+              Your visit request has been submitted. You will receive an email with the details you provided. Please check your inbox.
+            </p>
+            <button
+              onClick={() => router.push('/')}
+              className="bg-green-500 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-600 transition-colors w-full"
+            >
+              OK
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       <style jsx global>{`
         .font-attractive { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 600; }

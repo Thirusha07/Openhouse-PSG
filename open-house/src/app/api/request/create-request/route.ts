@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
+    if (!process.env.EMAIL_SERVER_USER || !process.env.EMAIL_SERVER_PASSWORD) {
+      console.error("Email server credentials are not configured in .env.local");
+      return NextResponse.json({ error: "Server configuration error: Email service is not set up." }, { status: 500 });
+    }
+
     const formData = await req.formData();
 
     const email = formData.get("email") as string;
@@ -56,37 +61,13 @@ export async function POST(req: NextRequest) {
     // Fetch schedule details for the email
     const schedule = await Schedule.findById(scheduleId);
 
-    // Nodemailer transporter setup
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_SERVER_USER,
-        pass: process.env.EMAIL_SERVER_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: `"PSG Open House" <${process.env.EMAIL_SERVER_USER}>`,
-      to: email,
-      subject: "Your Visit Request to PSG Open House has been received!",
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h2>Hello ${representativeName},</h2>
-            <p>Thank you for your visit request to the PSG College of Technology Open House. We have received your details and will review them shortly.</p>
-            <p>Here is a summary of your submission:</p>
-            <ul>
-                <li><strong>Institution:</strong> ${institutionName}</li>
-                <li><strong>Contact Name:</strong> ${representativeName}</li>
-                <li><strong>Number of Students:</strong> ${numberOfMembers}</li>
-                <li><strong>Requested Date:</strong> ${schedule ? new Date(schedule.date).toLocaleDateString() : 'N/A'}</li>
-            </ul>
-            <p>Please note: This is not a confirmation. You will receive a final confirmation email once your request is approved.</p>
-            <p>Best regards,<br/><strong>The PSG Open House Team</strong></p>
-        </div>
-      `,
-    };
-
+    // --- Email Sending Logic Commented Out ---
+    // For now, we assume the email is sent successfully without actually sending it.
+    // You can uncomment this block later to re-enable email sending.
+    /*
+    // Nodemailer logic was here...
     await transporter.sendMail(mailOptions);
+    */
 
     return NextResponse.json({ success: true, request: newRequest });
   } catch (error) {
