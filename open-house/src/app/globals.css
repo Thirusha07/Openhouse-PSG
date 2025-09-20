@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Simple reveal-on-scroll animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Directional reveal helpers */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.reveal-right {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.reveal-left.show, .reveal-right.show {
+  opacity: 1;
+  transform: translateX(0);
+}

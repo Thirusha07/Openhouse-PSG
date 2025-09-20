@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask, FaFilePdf } from 'react-icons/fa';
 import { FaComputer } from "react-icons/fa6";
 import clsx from 'clsx';
 
@@ -47,6 +47,8 @@ export default function AdminPage() {
         numberOfMembers: number;
         mobileNumber: string;
         schedule?: Schedule;
+        idProof: string;
+        studentList: string;
     }
 
     interface RequestData {
@@ -85,6 +87,8 @@ export default function AdminPage() {
     const [scheduleToEdit, setScheduleToEdit] = useState<any>(null);
     const [editLoading, setEditLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+    const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+    const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
 
 
 
@@ -121,16 +125,27 @@ export default function AdminPage() {
 
         return csvRows.join('\n');
     };
-    const filteredRequests = bookingRequests.filter(
-        r => r.status?.toLowerCase() === activeView
-    );
-    const acceptedRequests = filteredRequests.filter(r => r.status === 'accepted');
+
+    // Derived state for the 'accepted' view
+    const acceptedRequests = bookingRequests.filter(r => r.status === 'accepted');
+
+    const uniqueAcceptedDates = [
+        ...new Set(
+            acceptedRequests
+                .map(r => r.event?.schedule?.date ? new Date(r.event.schedule.date).toLocaleDateString() : null)
+                .filter((date): date is string => date !== null)
+        )
+    ];
+
+    const filteredAcceptedRequests = selectedDateFilter
+        ? acceptedRequests.filter(r => r.event?.schedule?.date && new Date(r.event.schedule.date).toLocaleDateString() === selectedDateFilter)
+        : acceptedRequests;
 
     // Function to handle CSV download for all accepted requests
     const handleDownloadCSV = () => {
         // Prepare data for CSV (map only relevant fields)
-        console.log("Accepted requests:", acceptedRequests);
-        const csvData = acceptedRequests.map(r => ({
+        console.log("Accepted requests for CSV:", filteredAcceptedRequests);
+        const csvData = filteredAcceptedRequests.map(r => ({
             Institution: r.event?.institutionName,
             Representative: r.event?.representativeName,
             Email: r.event?.email,
@@ -141,6 +156,12 @@ export default function AdminPage() {
                 : '',
             Status: r.status,
         }));
+
+        if (csvData.length === 0) {
+            setToastMsg('No data to download for the selected criteria.');
+            setToastType('error');
+            return;
+        }
 
         const csvString = convertToCSV(csvData);
 
@@ -465,6 +486,15 @@ export default function AdminPage() {
         }
     };
 
+    const handlePreviewClick = (pdfData: string | null | undefined) => {
+        if (pdfData) {
+            setPdfPreview(pdfData);
+        } else {
+            setToastMsg('No preview available for this document.');
+            setToastType('error');
+        }
+    };
+
 
     //console.log("Booking requests:", bookingRequests);
 
@@ -530,75 +560,81 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveView('pending')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'pending'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaClock className="text-lg" />
+                        <FaClock className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>Pending</span>}
 
                     </button>
                     <button
                         onClick={() => setActiveView('accepted')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'accepted'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaEdit className="text-lg" />
+                        <FaEdit className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>Accepted</span>}
                     </button>
                     <button
                         onClick={() => setActiveView('create-schedule')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'create-schedule'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaPlus className="text-lg" />
+                        <FaPlus className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>Create Schedule</span>}
                     </button>
 
                     <button
                         onClick={() => setActiveView('schedules')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'schedules'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaCalendarAlt className="text-lg" />
+                        <FaCalendarAlt className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>View Schedules</span>}
                     </button>
                     <button
                         onClick={() => setActiveView('add-labs')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'add-labs'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaFlask className="text-lg" />
+                        <FaFlask className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>Add Labs</span>}
                     </button>
                     <button
                         onClick={() => setActiveView('view-labs')}
                         className={clsx(
-                            'flex items-center gap-3 px-3 py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            'flex items-center py-2 rounded-md font-semibold transition-all duration-200 text-base',
+                            sidebarOpen ? 'gap-3 px-3' : 'justify-center',
                             activeView === 'view-labs'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                     >
-                        <FaComputer className='text-lg' />
+                        <FaComputer className={clsx(sidebarOpen ? 'text-lg' : 'text-2xl')} />
                         {sidebarOpen && <span>View Labs</span>}
                     </button>
 
@@ -615,9 +651,38 @@ export default function AdminPage() {
                 </div>
             )}
 
+            {/* PDF Preview Modal */}
+            {pdfPreview && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+                    onClick={() => setPdfPreview(null)}
+                >
+                    <div
+                        className="bg-gray-800 p-4 rounded-lg shadow-lg w-full max-w-4xl h-[90vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-end mb-2">
+                            <button
+                                onClick={() => setPdfPreview(null)}
+                                className="text-white text-3xl font-bold hover:text-gray-400"
+                                title="Close"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className="flex-grow">
+                            <iframe
+                                src={`data:application/pdf;base64,${pdfPreview}`}
+                                className="w-full h-full border-0"
+                                title="PDF Preview"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Main Content */}
             <div
-                className="pl-16 transition-all duration-300 flex flex-col min-h-screen w-full"
+                className="p-8 transition-all duration-300 flex flex-col min-h-screen w-full"
                 style={{
                     marginLeft: sidebarWidth,
                 }}
@@ -938,29 +1003,54 @@ export default function AdminPage() {
                         </div>
                     ) :
                         (
-                            <>
-                                <h2 className="text-2xl font-bold mt-8 mb-4">
-                                    {activeView === 'pending' && 'Pending Visit Requests'}
-                                    {activeView === 'accepted' && 'Accepted Visit Requests'}
-                                </h2>
-                                {activeView === 'accepted' && (
-                                    <button
-                                        onClick={handleDownloadCSV}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 mt-8 mb-4 rounded-md"
-                                    >
-                                        Download CSV
-                                    </button>
+                            <div className="w-full max-w-6xl mx-auto">
+                                {activeView === 'pending' && (
+                                    <h2 className="text-2xl font-bold mt-8 mb-4 text-center">
+                                        Pending Visit Requests
+                                    </h2>
                                 )}
+                                {activeView === 'accepted' && (
+                                    <div className="flex flex-col sm:flex-row justify-between items-center mt-8 mb-4 gap-4">
+                                        <h2 className="text-2xl font-bold">
+                                            Accepted Visit Requests
+                                        </h2>
+                                        <div className="flex items-center gap-4">
+                                            <select
+                                                value={selectedDateFilter}
+                                                onChange={(e) => setSelectedDateFilter(e.target.value)}
+                                                className="p-2 border border-gray-700 rounded-md bg-gray-800 text-white font-light"
+                                            >
+                                                <option value="">All Dates</option>
+                                                {uniqueAcceptedDates.map(date => (
+                                                    <option key={date} value={date}>{date}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={handleDownloadCSV}
+                                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md whitespace-nowrap"
+                                            >
+                                                Download CSV
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {requestsLoading ? (
                                     <div className="flex justify-center items-center py-8">
                                         <span className="text-gray-400 text-lg">Loading data...</span>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {filteredRequests.length === 0 ? (
-                                            <p className="text-gray-400">No {activeView} requests found.</p>
-                                        ) : (
-                                            filteredRequests.map(request => (
+                                        {(() => {
+                                            const requestsToDisplay = activeView === 'accepted'
+                                                ? filteredAcceptedRequests
+                                                : bookingRequests.filter(r => r.status === 'pending');
+
+                                            if (requestsToDisplay.length === 0) {
+                                                return <p className="text-gray-400 col-span-full text-center">No {activeView} requests found for the selected criteria.</p>;
+                                            }
+
+                                            return requestsToDisplay.map(request => (
                                                 <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
                                                     <div className="absolute top-3 right-3">
                                                         {request.status === 'pending' && <FaClock className="text-yellow-400" />}
@@ -987,6 +1077,26 @@ export default function AdminPage() {
                                                     <p>
                                                         <span className="text-gray-400">Mobile:</span>{' '}
                                                         <span className="text-white font-light">{request.event?.mobileNumber}</span>
+                                                    </p>
+                                                    <p className="flex items-center gap-2 mt-2">
+                                                        <span className="text-gray-400">ID Proof:</span>
+                                                        <button
+                                                            onClick={() => handlePreviewClick(request.event.idProof)}
+                                                            className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
+                                                            title="Preview ID Proof"
+                                                        >
+                                                            <FaFilePdf /> Preview
+                                                        </button>
+                                                    </p>
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="text-gray-400">Student List:</span>
+                                                        <button
+                                                            onClick={() => handlePreviewClick(request.event.studentList)}
+                                                            className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
+                                                            title="Preview Student List"
+                                                        >
+                                                            <FaFilePdf /> Preview
+                                                        </button>
                                                     </p>
                                                     {request.status === 'accepted' && request.event?.schedule?.date && (
                                                         <p>
@@ -1017,11 +1127,11 @@ export default function AdminPage() {
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
-                                        )}
+                                            ));
+                                        })()}
                                     </div>
                                 )}
-                            </>
+                            </div>
                         )}
                 </div>
             </div>
