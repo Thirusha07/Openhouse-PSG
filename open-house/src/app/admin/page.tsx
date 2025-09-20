@@ -317,7 +317,12 @@ export default function AdminPage() {
 
     useEffect(() => {
         setRequestsLoading(true);
-        fetch(`/api/request/fetch-request?status=${activeView}`)
+        // Fetch all requests when viewing pending or accepted to have full context for capacity checks
+        const endpoint = (activeView === 'pending' || activeView === 'accepted')
+            ? '/api/request/fetch-request'
+            : `/api/request/fetch-request?status=${activeView}`;
+
+        fetch(endpoint)
             .then(res => res.json())
             .then(data => {
                 console.log("Fetched data:", data); // Debug log
@@ -325,7 +330,7 @@ export default function AdminPage() {
             })
             .catch(err => {
                 setBookingRequests([]);
-                console.error('Failed to fetch:', err)
+                console.error('Failed to fetch requests:', err)
             })
             .finally(() => setRequestsLoading(false));
     }, [activeView]);
@@ -388,36 +393,13 @@ export default function AdminPage() {
     }, [labs, labSearch, labDeptFilter]);
 
     const handleEmailNotification = async (request: any, status: 'accepted' | 'declined') => {
-        try {
-            const res = await fetch('/api/mail/send-mail', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    toEmail: request.event.email,
-                    status,
-                    institutionName: request.event.institutionName,
-                    representativeName: request.event.representativeName,
-                    date: request.event.schedule?.date || new Date().toISOString(),
-                    numberOfMembers: request.event.numberOfMembers,
-                })
-            });
-
-            const result = await res.json();
-            if (res.ok) {
-                setToastType('success');
-                setToastMsg(`Email ${status === 'accepted' ? 'sent for approval' : 'sent for rejection'}`);
-                return true;
-            } else {
-                setToastType('error');
-                setToastMsg('Failed to send email');
-                return false;
-            }
-        } catch (err) {
-            console.error('Failed to send email:', err);
-            setToastType('error');
-            setToastMsg('Error while sending email');
-            return false;
-        }
+        // --- Email Sending Logic Commented Out ---
+        // For now, we assume the email is sent successfully without actually sending it.
+        // You can uncomment this block later to re-enable email sending via the '/api/mail/send-mail' route.
+        console.log(`Email notification for ${status} status to ${request.event.email} is currently disabled.`);
+        setToastType('success');
+        setToastMsg(`Decision recorded. Email notification is currently disabled.`);
+        return true; // Assume email was sent successfully
     };
 
     const updateRequestStatus = async (requestId: string, eventId: string, status: 'accepted' | 'declined') => {
@@ -1050,84 +1032,117 @@ export default function AdminPage() {
                                                 return <p className="text-gray-400 col-span-full text-center">No {activeView} requests found for the selected criteria.</p>;
                                             }
 
-                                            return requestsToDisplay.map(request => (
-                                                <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
-                                                    <div className="absolute top-3 right-3">
-                                                        {request.status === 'pending' && <FaClock className="text-yellow-400" />}
-                                                        {request.status === 'accepted' && (
-                                                            <span className="text-green-400 font-semibold text-sm">Accepted</span>
-                                                        )}
-                                                    </div>
-                                                    <p>
-                                                        <span className="text-gray-400">Institution:</span>{' '}
-                                                        <span className="text-white font-light">{request.event?.institutionName}</span>
-                                                    </p>
-                                                    <p>
-                                                        <span className="text-gray-400">Representative:</span>{' '}
-                                                        <span className="text-white font-light">{request.event?.representativeName}</span>
-                                                    </p>
-                                                    <p>
-                                                        <span className="text-gray-400">Email:</span>{' '}
-                                                        <span className="text-white font-light">{request.event?.email}</span>
-                                                    </p>
-                                                    <p>
-                                                        <span className="text-gray-400">Students:</span>{' '}
-                                                        <span className="text-white font-light">{request.event?.numberOfMembers}</span>
-                                                    </p>
-                                                    <p>
-                                                        <span className="text-gray-400">Mobile:</span>{' '}
-                                                        <span className="text-white font-light">{request.event?.mobileNumber}</span>
-                                                    </p>
-                                                    <p className="flex items-center gap-2 mt-2">
-                                                        <span className="text-gray-400">ID Proof:</span>
-                                                        <button
-                                                            onClick={() => handlePreviewClick(request.event.idProof)}
-                                                            className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
-                                                            title="Preview ID Proof"
-                                                        >
-                                                            <FaFilePdf /> Preview
-                                                        </button>
-                                                    </p>
-                                                    <p className="flex items-center gap-2">
-                                                        <span className="text-gray-400">Student List:</span>
-                                                        <button
-                                                            onClick={() => handlePreviewClick(request.event.studentList)}
-                                                            className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
-                                                            title="Preview Student List"
-                                                        >
-                                                            <FaFilePdf /> Preview
-                                                        </button>
-                                                    </p>
-                                                    {request.status === 'accepted' && request.event?.schedule?.date && (
+                                            return requestsToDisplay.map(request => {
+                                                const schedule = request.event?.schedule;
+                                                let capacityStatus = { canAccept: true, message: '' };
+
+                                                if (request.status === 'pending' && schedule) {
+                                                    const acceptedForThisDate = acceptedRequests.filter(
+                                                        accReq => accReq.event.schedule?._id === schedule._id
+                                                    );
+                                                    const acceptedCount = acceptedForThisDate.reduce(
+                                                        (sum, accReq) => sum + accReq.event.numberOfMembers,
+                                                        0
+                                                    );
+                                                    const remainingCapacity = schedule.capacity - acceptedCount;
+                                                    const canAccept = request.event.numberOfMembers <= remainingCapacity;
+
+                                                    if (canAccept) {
+                                                        capacityStatus = {
+                                                            canAccept: true,
+                                                            message: `Can Accept (${remainingCapacity} seats available)`
+                                                        };
+                                                    } else {
+                                                        capacityStatus = {
+                                                            canAccept: false,
+                                                            message: `Event Day Full (Only ${remainingCapacity} seats left)`
+                                                        };
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
+                                                        <div className="absolute top-3 right-3">
+                                                            {request.status === 'pending' && <FaClock className="text-yellow-400" />}
+                                                            {request.status === 'accepted' && (
+                                                                <span className="text-green-400 font-semibold text-sm">Accepted</span>
+                                                            )}
+                                                        </div>
+                                                        <p>
+                                                            <span className="text-gray-400">Institution:</span>{' '}
+                                                            <span className="text-white font-light">{request.event?.institutionName}</span>
+                                                        </p>
+                                                        <p>
+                                                            <span className="text-gray-400">Representative:</span>{' '}
+                                                            <span className="text-white font-light">{request.event?.representativeName}</span>
+                                                        </p>
+                                                        <p>
+                                                            <span className="text-gray-400">Email:</span>{' '}
+                                                            <span className="text-white font-light">{request.event?.email}</span>
+                                                        </p>
+                                                        <p>
+                                                            <span className="text-gray-400">Students:</span>{' '}
+                                                            <span className="text-white font-light">{request.event?.numberOfMembers}</span>
+                                                        </p>
+                                                        <p>
+                                                            <span className="text-gray-400">Mobile:</span>{' '}
+                                                            <span className="text-white font-light">{request.event?.mobileNumber}</span>
+                                                        </p>
                                                         <p>
                                                             <span className="text-gray-400">Scheduled Date:</span>{' '}
                                                             <span className="text-white font-light">
-                                                                {new Date(request.event.schedule.date).toLocaleDateString()}
+                                                                {schedule ? new Date(schedule.date).toLocaleDateString() : 'N/A'}
                                                             </span>
                                                         </p>
-                                                    )}
-                                                    <div className="mt-4 flex gap-2">
-                                                        {request.status === 'pending' ? (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleDecision(request._id, 'accepted')}
-                                                                    className="bg-green-600 px-3 py-1 rounded-md text-sm hover:bg-green-700"
-                                                                >
-                                                                    Accept
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDecision(request._id, 'declined')}
-                                                                    className="bg-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-700"
-                                                                >
-                                                                    Decline
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-sm text-green-400 font-semibold">Approved</span>
+                                                        {capacityStatus.message && (
+                                                            <p className={`${capacityStatus.canAccept ? 'text-green-400' : 'text-red-500'} text-sm mt-2 font-semibold`}>
+                                                                {capacityStatus.message}
+                                                            </p>
                                                         )}
+                                                        <p className="flex items-center gap-2 mt-2">
+                                                            <span className="text-gray-400">ID Proof:</span>
+                                                            <button
+                                                                onClick={() => handlePreviewClick(request.event.idProof)}
+                                                                className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
+                                                                title="Preview ID Proof"
+                                                            >
+                                                                <FaFilePdf /> Preview
+                                                            </button>
+                                                        </p>
+                                                        <p className="flex items-center gap-2">
+                                                            <span className="text-gray-400">Student List:</span>
+                                                            <button
+                                                                onClick={() => handlePreviewClick(request.event.studentList)}
+                                                                className="text-blue-400 hover:text-blue-600 flex items-center gap-1 text-sm"
+                                                                title="Preview Student List"
+                                                            >
+                                                                <FaFilePdf /> Preview
+                                                            </button>
+                                                        </p>
+                                                        <div className="mt-4 flex gap-2">
+                                                            {request.status === 'pending' ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleDecision(request._id, 'accepted')}
+                                                                        className={`px-3 py-1 rounded-md text-sm ${!capacityStatus.canAccept ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                                                        disabled={!capacityStatus.canAccept}
+                                                                    >
+                                                                        Accept
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDecision(request._id, 'declined')}
+                                                                        className="bg-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-700"
+                                                                    >
+                                                                        Decline
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-sm text-green-400 font-semibold">Approved</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ));
+                                                );
+                                            });
                                         })()}
                                     </div>
                                 )}
