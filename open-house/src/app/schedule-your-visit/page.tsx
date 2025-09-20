@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type Schedule = {
   _id: string;
@@ -12,10 +13,11 @@ type Schedule = {
 };
 
 export default function ScheduleYourVisitPage() {
+  const router = useRouter();
   const [availableSchedules, setAvailableSchedules] = useState<Schedule[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
 
-  const [bookingFormData, setBookingFormData] = useState({
+  const initialFormState = {
     institute: '',
     name: '',
     email: '',
@@ -24,12 +26,12 @@ export default function ScheduleYourVisitPage() {
     idProof: null as File | null,
     studentList: null as File | null,
     mobileNumber: '',
-  });
+  };
+
+  const [bookingFormData, setBookingFormData] = useState(initialFormState);
 
   const [bookingError, setBookingError] = useState('');
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [emailVerificationStatus, setEmailVerificationStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   useEffect(() => {
     const fetchSchedules = async () => {
@@ -75,22 +77,14 @@ export default function ScheduleYourVisitPage() {
     setBookingError('');
   };
 
-  const handleVerifyEmail = () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    setEmailVerificationStatus('loading');
-    setTimeout(() => {
-      if (emailRegex.test(bookingFormData.email)) {
-        setEmailVerificationStatus('success');
-        setIsEmailVerified(true);
-      } else {
-        setEmailVerificationStatus('error');
-        setIsEmailVerified(false);
-      }
-    }, 1000);
+  const resetForm = () => {
+    setBookingFormData(initialFormState);
+    setSelectedSchedule(null);
+    setBookingError('');
   };
 
   const handleBookingSubmit = async () => {
-    if (!isFormValid() || !isEmailVerified) return;
+    if (!isFormValid()) return;
 
     setBookingStatus('loading');
     setBookingError('');
@@ -119,15 +113,14 @@ export default function ScheduleYourVisitPage() {
 
       if (res.ok) {
         setBookingStatus('success');
-        alert('Visit request submitted successfully! You will receive a confirmation email.');
-        // Optionally reset form or redirect user
+        alert('Visit request submitted successfully! You will receive an email with the details you provided. Please check your inbox.');
+        router.push('/');
       } else {
         throw new Error(data.error || 'Failed to submit booking request.');
       }
     } catch (err: any) {
       setBookingStatus('error');
       setBookingError(err.message);
-      alert(`Error: ${err.message}`);
     } finally {
       setBookingStatus('idle');
     }
@@ -151,7 +144,7 @@ export default function ScheduleYourVisitPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-300 via-blue-300 to-purple-300">
       <nav className="fixed top-0 w-full bg-gradient-to-r from-cyan-200 via-blue-200 to-purple-200 bg-opacity-95 backdrop-blur-sm z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -173,44 +166,14 @@ export default function ScheduleYourVisitPage() {
 
       <section className="pt-32 pb-12">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="bg-gray-900 p-8 rounded-lg shadow-lg border border-gray-800">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="bg-black/50 backdrop-blur-lg p-8 rounded-2xl border border-white/20 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">Request Visit</h2>
 
             <input type="text" name="institute" placeholder="Institute Name / School Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
             <input type="text" name="name" placeholder="Your Name (Teacher/Coordinator)" value={bookingFormData.name} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
 
-            <div className="flex gap-2 mb-3 items-center">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={bookingFormData.email}
-                onChange={(e) => {
-                  setBookingFormData({ ...bookingFormData, email: e.target.value });
-                  setEmailVerificationStatus('idle');
-                  setIsEmailVerified(false);
-                }}
-                className="w-full p-3 rounded bg-gray-800 text-white font-light"
-              />
-              <button onClick={handleVerifyEmail} disabled={!bookingFormData.email} className={`px-4 py-2 rounded font-semibold ${bookingFormData.email ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-gray-500 text-white cursor-not-allowed'}`}>
-                Verify
-              </button>
-              {emailVerificationStatus === 'loading' && <span className="text-yellow-400 animate-spin">🔄</span>}
-              {emailVerificationStatus === 'success' && <span className="text-green-400">✔️</span>}
-              {emailVerificationStatus === 'error' && <span className="text-red-400">❌</span>}
-            </div>
-
-            <input
-              type="tel"
-              name="mobileNumber"
-              placeholder="Mobile Number"
-              value={bookingFormData.mobileNumber}
-              onChange={handleInputChange}
-              className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light"
-              pattern="[0-9]{10}"
-              maxLength={10}
-              required
-            />
+            <input type="email" name="email" placeholder="Email" value={bookingFormData.email} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
+            <input type="tel" name="mobileNumber" placeholder="Mobile Number" value={bookingFormData.mobileNumber} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" pattern="[0-9]{10}" maxLength={10} required />
 
             <div className="mb-3">
               <label className="block text-white mb-1">Select a Visit Date</label>
@@ -296,8 +259,8 @@ export default function ScheduleYourVisitPage() {
               <Link href="/" className="bg-red-500 text-white px-5 py-2 rounded-md font-semibold hover:bg-red-600">Cancel</Link>
               <button
                 onClick={handleBookingSubmit}
-                className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${isFormValid() && isEmailVerified ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-600 text-white cursor-not-allowed'}`}
-                disabled={!(isFormValid() && isEmailVerified) || bookingStatus === 'loading'}
+                className={`px-6 py-2 rounded-md font-semibold transition-colors duration-200 ${isFormValid() ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-600 text-white cursor-not-allowed'}`}
+                disabled={!isFormValid() || bookingStatus === 'loading'}
               >
                 {bookingStatus === 'loading' ? 'Booking...' : 'Book Visit'}
               </button>
