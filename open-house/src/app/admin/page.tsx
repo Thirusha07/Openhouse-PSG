@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask, FaFilePdf } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaBars, FaClock, FaCalendarAlt, FaPlus, FaFlask, FaFilePdf, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import { FaComputer } from "react-icons/fa6";
+import Link from 'next/link';
 import clsx from 'clsx';
 
 const departments = [
@@ -89,6 +90,17 @@ export default function AdminPage() {
     const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
     const [pdfPreview, setPdfPreview] = useState<string | null>(null);
     const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
+
+    // Rejection Modal State
+    const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [requestToDecline, setRequestToDecline] = useState<RequestData | null>(null);
+
+    // Overbooking confirmation state
+    const [overbookConfirmModalOpen, setOverbookConfirmModalOpen] = useState(false);
+    const [requestToOverbook, setRequestToOverbook] = useState<RequestData | null>(null);
+    const [overbookDetails, setOverbookDetails] = useState({ capacity: 0, current: 0, requested: 0 });
+
 
 
 
@@ -392,15 +404,38 @@ export default function AdminPage() {
         setFilteredLabsByDept(grouped);
     }, [labs, labSearch, labDeptFilter]);
 
-    const handleEmailNotification = async (request: any, status: 'accepted' | 'declined') => {
-        // --- Email Sending Logic Commented Out ---
-        // For now, we assume the email is sent successfully without actually sending it.
-        // You can uncomment this block later to re-enable email sending via the '/api/mail/send-mail' route.
-        console.log(`Email notification for ${status} status to ${request.event.email} is currently disabled.`);
-        setToastType('success');
-        setToastMsg(`Decision recorded. Email notification is currently disabled.`);
-        return true; // Assume email was sent successfully
+    const handleEmailNotification = async (request: any, status: 'accepted' | 'declined', reason?: string) => {
+        try {
+            const res = await fetch('/api/mail/send-mail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    toEmail: request.event.email,
+                    status,
+                    institutionName: request.event.institutionName,
+                    representativeName: request.event.representativeName,
+                    date: request.event.schedule?.date,
+                    numberOfMembers: request.event.numberOfMembers,
+                    rejectionReason: reason,
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to send email');
+            }
+
+            setToastMsg(`Request ${status} and email sent successfully.`);
+            setToastType('success');
+            return true;
+        } catch (error) {
+            console.error('Email sending error:', error);
+            setToastMsg(error instanceof Error ? error.message : 'An error occurred while sending the email.');
+            setToastType('error');
+            return false;
+        }
     };
+
 
     const updateRequestStatus = async (requestId: string, eventId: string, status: 'accepted' | 'declined') => {
         try {
@@ -410,17 +445,18 @@ export default function AdminPage() {
                 body: JSON.stringify({ requestId, eventId, status })
             });
             const result = await res.json();
-            if (!res.ok) throw new Error(result.error);
+            if (!res.ok) {
+                throw new Error(result.error || 'Failed to update request status');
+            }
         } catch (error) {
             console.error('Failed to update DB status:', error);
         }
     };
-
-    const handleDecision = async (requestId: string, decision: 'accepted' | 'declined') => {
+    const handleDecision = async (requestId: string, decision: 'accepted' | 'declined', reason?: string) => {
         const request = bookingRequests.find(req => req._id === requestId);
         if (!request) return;
 
-        const emailSent = await handleEmailNotification(request, decision);
+        const emailSent = await handleEmailNotification(request, decision, reason);
         if (emailSent) {
             await updateRequestStatus(requestId, request.event._id, decision);
             setBookingRequests(prevRequests =>
@@ -429,6 +465,55 @@ export default function AdminPage() {
                 )
             );
         }
+    };
+    const handleOpenDeclineModal = (request: RequestData) => {
+        setRequestToDecline(request);
+        setRejectionModalOpen(true);
+    };
+
+    const handleConfirmDecline = async () => {
+        if (!requestToDecline) return;
+        if (!rejectionReason.trim()) {
+            setToastMsg('Please provide a reason for rejection.');
+            setToastType('error');
+            return;
+        }
+        await handleDecision(requestToDecline._id, 'declined', rejectionReason);
+        setRejectionModalOpen(false);
+        setRejectionReason('');
+        setRequestToDecline(null);
+    };
+
+    const handleAcceptClick = (request: RequestData, canAccept: boolean) => {
+        if (canAccept) {
+            handleDecision(request._id, 'accepted');
+        } else {
+            const schedule = request.event?.schedule;
+            if (!schedule) return; // Should not happen
+
+            const acceptedOnThisDate = acceptedRequests.filter(
+                accReq => accReq.event.schedule?._id === schedule._id
+            );
+            const acceptedCount = acceptedOnThisDate.reduce(
+                (sum, accReq) => sum + accReq.event.numberOfMembers,
+                0
+            );
+
+            setRequestToOverbook(request);
+            setOverbookDetails({
+                capacity: schedule.capacity,
+                current: acceptedCount,
+                requested: request.event.numberOfMembers
+            });
+            setOverbookConfirmModalOpen(true);
+        }
+    };
+
+    const handleConfirmOverbook = async () => {
+        if (!requestToOverbook) return;
+        await handleDecision(requestToOverbook._id, 'accepted');
+        setOverbookConfirmModalOpen(false);
+        setRequestToOverbook(null);
     };
 
     const [scheduleData, setScheduleData] = useState({
@@ -446,7 +531,7 @@ export default function AdminPage() {
                 },
                 body: JSON.stringify({
                     ...scheduleData,
-                    capacoty: Number(scheduleData.capacity),
+                    capacity: Number(scheduleData.capacity),
                 }),
             });
 
@@ -484,59 +569,89 @@ export default function AdminPage() {
 
     return (
         <>  {!isLoggedIn ? (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900">
-                <form
-                    onSubmit={handleLogin}
-                    className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full"
-                >
-                    <h2 className="text-2xl font-bold mb-6 text-center text-white">Admin Login</h2>
-                    {loginError && (
-                        <p className="text-red-500 mb-4 text-center">{loginError}</p>
-                    )}
-                    <div className="mb-4">
-                        <label className="block text-gray-400 mb-1">Username</label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="w-full p-2 rounded-md bg-gray-700 text-white"
-                            required
-                            autoFocus
-                        />
+            <>
+                <nav className="fixed top-0 w-full bg-gradient-to-r from-cyan-200 via-blue-200 to-purple-200 bg-opacity-95 backdrop-blur-sm z-50 shadow-lg">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center py-4">
+                            <Link href="/" className="flex items-center space-x-4">
+                                <img
+                                    src="/images/logo.jpg"
+                                    alt="PSG Logo"
+                                    className="h-16 w-16 mr-4"
+                                />
+                                <span className="text-gray-900 text-xl font-bold">PSG College of Technology</span>
+                            </Link>
+                        </div>
                     </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-400 mb-1">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-2 rounded-md bg-gray-700 text-white"
-                            required
-                        />
+                </nav>
+                <div className="flex flex-col justify-center items-center min-h-screen bg-gradient-to-br from-cyan-200 via-blue-200 to-purple-200 pt-24">
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl font-bold text-gray-900">PSG Tech OpenHouse 2025</h1>
+                        <p className="text-lg text-gray-700 mt-2">Admin Portal</p>
                     </div>
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold"
+                    <form
+                        onSubmit={handleLogin}
+                        className="bg-white/60 backdrop-blur-md p-8 rounded-xl shadow-xl max-w-sm w-full"
                     >
-                        Login
-                    </button>
-                </form>
-            </div>
-        ) : (<div className="flex min-h-screen bg-gray-900 text-white">
-            {/* Sidebar */}
+                        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Admin Login</h2>
+                        {loginError && (
+                            <p className="text-red-500 mb-4 text-center">{loginError}</p>
+                        )}
+                        <div className="mb-4">
+                            <label className="block text-gray-600 mb-1">Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full p-2 rounded-md bg-gray-50 text-black border border-gray-300"
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-gray-600 mb-1">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-2 rounded-md bg-gray-50 text-black border border-gray-300"
+                                required
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold"
+                        >
+                            Login
+                        </button>
+                    </form>
+                </div>
+            </>
+        ) : (<div className="min-h-screen bg-gradient-to-br from-gray-800 via-gray-900 to-black text-gray-200">
+            {/* Mobile-only hamburger button to open the sidebar */}
+            <button
+                className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-gray-700 text-white shadow-lg"
+                onClick={() => setSidebarOpen(true)}
+            >
+                <FaBars />
+            </button>
 
+            {/* Sidebar */}
             <div
                 className={clsx(
-                    'fixed top-0 left-0 h-full bg-gray-800 p-4 transition-all duration-300 z-30 space-y-6',
-                    sidebarOpen ? 'w-64' : 'w-16'
+                    'fixed top-0 left-0 h-full bg-gray-800 p-4 transition-transform duration-300 z-40 space-y-6',
+                    'md:transition-all',
+                    sidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:translate-x-0 md:w-16'
                 )}
-                style={{ width: sidebarWidth }}
             >
                 <button
-                    className="text-white mb-4 text-xl"
+                    className="text-white mb-4 text-xl hidden md:block"
                     onClick={() => setSidebarOpen(prev => !prev)}
                 >
                     <FaBars />
+                </button>
+                <button className="text-white text-2xl absolute top-2 right-2 md:hidden" onClick={() => setSidebarOpen(false)}>
+                    <FaTimes />
                 </button>
                 <div className="flex flex-col space-y-4">
                     <button
@@ -622,11 +737,87 @@ export default function AdminPage() {
 
                 </div>
             </div>
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                ></div>
+            )}
+
+            {/* Overbooking Confirmation Modal */}
+            {overbookConfirmModalOpen && requestToOverbook && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full text-white">
+                        <h2 className="text-xl font-bold mb-4 text-center text-yellow-400 flex items-center justify-center gap-2">
+                            <FaExclamationTriangle /> Capacity Warning
+                        </h2>
+                        <p className="text-center text-white mb-4">
+                            This event day has a capacity of <strong>{overbookDetails.capacity}</strong>.
+                            It is currently at <strong>{overbookDetails.current} / {overbookDetails.capacity}</strong>.
+                        </p>
+                        <p className="text-center text-white mb-6">
+                            Approving this request for <strong>{overbookDetails.requested}</strong> members will exceed the capacity. Are you sure you want to proceed?
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={handleConfirmOverbook}
+                                className="bg-yellow-600 px-6 py-2 rounded-md text-black font-semibold hover:bg-yellow-700"
+                            >
+                                Yes, Accept Anyway
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOverbookConfirmModalOpen(false);
+                                    setRequestToOverbook(null);
+                                }}
+                                className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Rejection Reason Modal */}
+            {rejectionModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full text-white">
+                        <h2 className="text-xl font-bold mb-4 text-center text-white">Reason for Rejection</h2>
+                        <textarea
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            className="w-full p-2 bg-gray-700 text-white rounded-md mb-4"
+                            rows={4}
+                            placeholder="Please provide a reason for declining this request..."
+                        ></textarea>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={handleConfirmDecline}
+                                className="bg-red-600 px-6 py-2 rounded-md text-white hover:bg-red-700"
+                            >
+                                Confirm Decline
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRejectionModalOpen(false);
+                                    setRejectionReason('');
+                                }}
+                                className="bg-gray-600 px-6 py-2 rounded-md text-white hover:bg-gray-700"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Fixed Toast Message */}
             {toastMsg && (
                 <div
-                    className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 p-3 ${toastType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white rounded-md max-w-md w-full text-center cursor-pointer shadow-lg`}
-                    style={{ maxWidth: 400 }}
+                    className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 p-3 ${toastType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white rounded-md max-w-sm w-full text-center cursor-pointer shadow-lg`}
                     onClick={() => setToastMsg('')}
                 >
                     {toastMsg}
@@ -636,11 +827,11 @@ export default function AdminPage() {
             {/* PDF Preview Modal */}
             {pdfPreview && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
                     onClick={() => setPdfPreview(null)}
                 >
                     <div
-                        className="bg-gray-800 p-4 rounded-lg shadow-lg w-full max-w-4xl h-[90vh] flex flex-col"
+                        className="bg-gray-800 p-2 sm:p-4 rounded-lg shadow-lg w-full max-w-4xl h-[90vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-end mb-2">
@@ -664,24 +855,24 @@ export default function AdminPage() {
             )}
             {/* Main Content */}
             <div
-                className="p-8 transition-all duration-300 flex flex-col min-h-screen w-full"
-                style={{
-                    marginLeft: sidebarWidth,
-                }}
+                className={clsx(
+                    "p-4 md:p-8 transition-all duration-300 flex flex-col min-h-screen",
+                    sidebarOpen ? 'md:ml-64' : 'md:ml-16'
+                )}
             >
 
                 {/* Always show header at the top and centered */}
                 <div className="w-full flex justify-center mt-8 mb-4">
                     <div className="text-center">
                         <img src="/images/logo.jpg" alt="PSG Logo" className="mx-auto h-20" />
-                        <h1 className="text-4xl font-bold font-attractive mt-4">Welcome, Admin!</h1>
+                        <h1 className="text-4xl font-bold font-attractive mt-4 text-white">Welcome, Admin!</h1>
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col items-center justify-center w-full">
                     {activeView === 'create-schedule' ? (
-                        <div className="flex justify-center items-center min-h-screen">
-                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+                        <div className="flex justify-center items-center w-full">
+                            <div className="bg-black/20 backdrop-blur-md p-8 rounded-xl shadow-lg max-w-md w-full">
                                 <h2 className="text-2xl font-bold mb-4 text-center text-white">Create Event Schedule</h2>
 
                                 <form onSubmit={handleCreateSchedule} className="space-y-4">
@@ -724,7 +915,7 @@ export default function AdminPage() {
                             </div>
                         </div>
                     ) : activeView === 'schedules' ? (
-                        <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-2xl">
+                        <div className="bg-black/20 backdrop-blur-md p-8 rounded-xl shadow-lg w-full max-w-4xl">
                             <h2 className="text-2xl font-bold mb-4 text-center text-white">Event Schedules</h2>
                             {schedulesLoading ? (
                                 <div className="flex justify-center items-center py-8">
@@ -783,7 +974,7 @@ export default function AdminPage() {
                             {/* Edit Modal */}
                             {editModalOpen && scheduleToEdit && (
                                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full">
+                                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full text-white">
                                         <h2 className="text-xl font-bold mb-4 text-center text-white">Edit Schedule</h2>
                                         <form onSubmit={handleUpdateSchedule} className="space-y-4">
                                             <div>
@@ -840,8 +1031,8 @@ export default function AdminPage() {
                         </div>
 
                     ) : activeView === 'add-labs' ? (
-                        <div className="flex justify-center items-center min-h-screen">
-                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+                        <div className="flex justify-center items-center w-full">
+                            <div className="bg-black/20 backdrop-blur-md p-8 rounded-xl shadow-lg max-w-md w-full">
                                 <h2 className="text-2xl font-bold mb-4 text-center text-white">Add Lab Details</h2>
                                 <form
                                     onSubmit={handleAddLab}
@@ -849,8 +1040,8 @@ export default function AdminPage() {
                                     encType="multipart/form-data"
                                 >
                                     <div>
-                                        <label className="block text-gray-400">Lab Name</label>
-                                        <input
+                                        <label className="block text-gray-600">Lab Name</label>
+                                        <input 
                                             type="text"
                                             value={labForm.labName}
                                             onChange={(e) => setLabForm({ ...labForm, labName: e.target.value })}
@@ -889,13 +1080,7 @@ export default function AdminPage() {
                                         <input
                                             type="file"
                                             accept="image/*"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0] || null;
-                                                setLabForm({ ...labForm, image: file });
-                                                if (file) {
-                                                    console.log("Selected file:", file.name, "Size:", file.size, "Type:", file.type);
-                                                }
-                                            }}
+                                            onChange={(e) => setLabForm({ ...labForm, image: e.target.files?.[0] || null })}
                                             className="w-full p-2 bg-gray-700 text-white rounded-md"
                                             required
                                         />
@@ -957,7 +1142,7 @@ export default function AdminPage() {
                                                 {deptLabs.map((lab) => (
                                                     <div
                                                         key={lab.labName}
-                                                        className="bg-gray-900 p-6 rounded-lg shadow-md hover:shadow-lg flex flex-col justify-between"
+                                                        className="bg-gray-800/70 backdrop-blur-md p-6 rounded-lg shadow-lg hover:shadow-xl flex flex-col justify-between"
                                                     >
                                                         <img
                                                             src={lab.image || "/images/default_lab.jpg"}
@@ -987,13 +1172,13 @@ export default function AdminPage() {
                         (
                             <div className="w-full max-w-6xl mx-auto">
                                 {activeView === 'pending' && (
-                                    <h2 className="text-2xl font-bold mt-8 mb-4 text-center">
+                                    <h2 className="text-2xl font-bold mt-8 mb-4 text-center text-white">
                                         Pending Visit Requests
                                     </h2>
                                 )}
                                 {activeView === 'accepted' && (
                                     <div className="flex flex-col sm:flex-row justify-between items-center mt-8 mb-4 gap-4">
-                                        <h2 className="text-2xl font-bold">
+                                        <h2 className="text-2xl font-bold text-white">
                                             Accepted Visit Requests
                                         </h2>
                                         <div className="flex items-center gap-4">
@@ -1037,31 +1222,33 @@ export default function AdminPage() {
                                                 let capacityStatus = { canAccept: true, message: '' };
 
                                                 if (request.status === 'pending' && schedule) {
-                                                    const acceptedForThisDate = acceptedRequests.filter(
+                                                    const acceptedOnThisDate = acceptedRequests.filter(
                                                         accReq => accReq.event.schedule?._id === schedule._id
                                                     );
-                                                    const acceptedCount = acceptedForThisDate.reduce(
+                                                    const acceptedCount = acceptedOnThisDate.reduce(
                                                         (sum, accReq) => sum + accReq.event.numberOfMembers,
                                                         0
                                                     );
                                                     const remainingCapacity = schedule.capacity - acceptedCount;
                                                     const canAccept = request.event.numberOfMembers <= remainingCapacity;
 
-                                                    if (canAccept) {
+                                                    if (!canAccept) {
                                                         capacityStatus = {
-                                                            canAccept: true,
-                                                            message: `Can Accept (${remainingCapacity} seats available)`
+                                                            canAccept: false,
+                                                            message: remainingCapacity < 0
+                                                                ? `Event Day Full (${-remainingCapacity} seats overbooked)`
+                                                                : `Event Day Full (Only ${remainingCapacity} seats left)`
                                                         };
                                                     } else {
                                                         capacityStatus = {
-                                                            canAccept: false,
-                                                            message: `Event Day Full (Only ${remainingCapacity} seats left)`
+                                                            canAccept: true,
+                                                            message: `Seats available: ${remainingCapacity}`
                                                         };
                                                     }
                                                 }
 
                                                 return (
-                                                    <div key={request._id} className="bg-gray-800 p-4 rounded-md shadow-md relative">
+                                                    <div key={request._id} className="bg-black/20 backdrop-blur-md p-4 rounded-lg shadow-lg relative text-gray-200">
                                                         <div className="absolute top-3 right-3">
                                                             {request.status === 'pending' && <FaClock className="text-yellow-400" />}
                                                             {request.status === 'accepted' && (
@@ -1070,27 +1257,27 @@ export default function AdminPage() {
                                                         </div>
                                                         <p>
                                                             <span className="text-gray-400">Institution:</span>{' '}
-                                                            <span className="text-white font-light">{request.event?.institutionName}</span>
+                                                            <span className="font-light text-gray-200">{request.event?.institutionName}</span>
                                                         </p>
                                                         <p>
                                                             <span className="text-gray-400">Representative:</span>{' '}
-                                                            <span className="text-white font-light">{request.event?.representativeName}</span>
+                                                            <span className="font-light text-gray-200">{request.event?.representativeName}</span>
                                                         </p>
                                                         <p>
                                                             <span className="text-gray-400">Email:</span>{' '}
-                                                            <span className="text-white font-light">{request.event?.email}</span>
+                                                            <span className="font-light text-gray-200">{request.event?.email}</span>
                                                         </p>
                                                         <p>
                                                             <span className="text-gray-400">Students:</span>{' '}
-                                                            <span className="text-white font-light">{request.event?.numberOfMembers}</span>
+                                                            <span className="font-light text-gray-200">{request.event?.numberOfMembers}</span>
                                                         </p>
                                                         <p>
                                                             <span className="text-gray-400">Mobile:</span>{' '}
-                                                            <span className="text-white font-light">{request.event?.mobileNumber}</span>
+                                                            <span className="font-light text-gray-200">{request.event?.mobileNumber}</span>
                                                         </p>
                                                         <p>
                                                             <span className="text-gray-400">Scheduled Date:</span>{' '}
-                                                            <span className="text-white font-light">
+                                                            <span className="font-light text-gray-200">
                                                                 {schedule ? new Date(schedule.date).toLocaleDateString() : 'N/A'}
                                                             </span>
                                                         </p>
@@ -1123,15 +1310,15 @@ export default function AdminPage() {
                                                             {request.status === 'pending' ? (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => handleDecision(request._id, 'accepted')}
-                                                                        className={`px-3 py-1 rounded-md text-sm ${!capacityStatus.canAccept ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                                                                        disabled={!capacityStatus.canAccept}
+                                                                        onClick={() => handleAcceptClick(request, capacityStatus.canAccept)}
+                                                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1.5"
                                                                     >
+                                                                        {!capacityStatus.canAccept && <FaExclamationTriangle className="text-yellow-300" />}
                                                                         Accept
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleDecision(request._id, 'declined')}
-                                                                        className="bg-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-700"
+                                                                        onClick={() => handleOpenDeclineModal(request)}
+                                                                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
                                                                     >
                                                                         Decline
                                                                     </button>
