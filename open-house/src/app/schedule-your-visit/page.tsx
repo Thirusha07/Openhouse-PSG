@@ -85,7 +85,10 @@ export default function ScheduleYourVisitPage() {
   };
 
   const handleBookingSubmit = async () => {
-    if (!isFormValid()) return;
+    if (!isFormValid()) {
+      setBookingError('Please fill out all required fields correctly.');
+      return;
+    }
 
     setBookingStatus('loading');
     setBookingError('');
@@ -133,7 +136,7 @@ export default function ScheduleYourVisitPage() {
     return (
       institute.trim() &&
       name.trim() &&
-      email.trim() &&
+      /^\S+@\S+\.\S+$/.test(email.trim()) &&
       mobileNumber.trim().length === 10 &&
       !isNaN(studentCount) &&
       studentCount > 0 &&
@@ -170,15 +173,15 @@ export default function ScheduleYourVisitPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="bg-black/50 backdrop-blur-lg p-8 rounded-2xl border border-white/20 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">Request Visit</h2>
 
-            <input type="text" name="institute" placeholder="Institute Name / School Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
-            <input type="text" name="name" placeholder="Your Name (Teacher/Coordinator)" value={bookingFormData.name} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
+            <fieldset className="space-y-3">
+              <input type="text" name="institute" placeholder="Institute Name / School Name" value={bookingFormData.institute} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
+              <input type="text" name="name" placeholder="Your Name (Teacher/Coordinator)" value={bookingFormData.name} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
+              <input type="email" name="email" placeholder="Email" value={bookingFormData.email} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" />
+              <input type="tel" name="mobileNumber" placeholder="Mobile Number" value={bookingFormData.mobileNumber} onChange={handleInputChange} className="w-full p-3 rounded bg-gray-800 text-white font-light" pattern="[0-9]{10}" maxLength={10} required />
 
-            <input type="email" name="email" placeholder="Email" value={bookingFormData.email} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" />
-            <input type="tel" name="mobileNumber" placeholder="Mobile Number" value={bookingFormData.mobileNumber} onChange={handleInputChange} className="w-full p-3 mb-3 rounded bg-gray-800 text-white font-light" pattern="[0-9]{10}" maxLength={10} required />
-
-            <div className="mb-3">
-              <label className="block text-white mb-1">Select a Visit Date</label>
-              <select name="scheduleId" value={bookingFormData.scheduleId} onChange={handleDateChange} className="w-full p-3 rounded bg-gray-800 text-white font-light">
+              <div>
+                <label className="block text-white mb-1">Select a Visit Date</label>
+                <select name="scheduleId" value={bookingFormData.scheduleId} onChange={handleDateChange} className="w-full p-3 rounded bg-gray-800 text-white font-light">
                 <option value="">Select a date</option>
                 {Array.isArray(availableSchedules) && availableSchedules.length > 0 ? (
                   availableSchedules.map((schedule) => (
@@ -195,13 +198,13 @@ export default function ScheduleYourVisitPage() {
               )}
             </div>
 
-            <div className="mb-3">
-              <label className="block text-white mb-1">Number of Students</label>
+              <div>
+                <label className="block text-white mb-1">Number of Students</label>
               <select
                 name="students"
                 value={bookingFormData.students}
                 onChange={handleInputChange}
-                className="w-full p-3 rounded bg-gray-800 text-white font-light"
+                  className="w-full p-3 rounded bg-gray-800 text-white font-light"
               >
                 <option value="" disabled>Select number of students</option>
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
@@ -212,7 +215,7 @@ export default function ScheduleYourVisitPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="idProof" className="block text-gray-300 text-sm font-bold mb-2">
                   Upload ID Proof (PDF, Max 2MB)
@@ -225,7 +228,7 @@ export default function ScheduleYourVisitPage() {
                     accept="application/pdf"
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
+                    />
                   <div className="flex items-center justify-center w-full p-3 rounded bg-gray-800 text-white font-light border-2 border-dashed border-gray-600 hover:border-blue-500 transition-colors">
                     <FileText className="w-6 h-6 mr-2 text-gray-400" />
                     <span>{bookingFormData.idProof ? bookingFormData.idProof.name : 'Choose a file'}</span>
@@ -245,7 +248,7 @@ export default function ScheduleYourVisitPage() {
                     accept="application/pdf"
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
+                    />
                   <div className="flex items-center justify-center w-full p-3 rounded bg-gray-800 text-white font-light border-2 border-dashed border-gray-600 hover:border-blue-500 transition-colors">
                     <FileText className="w-6 h-6 mr-2 text-gray-400" />
                     <span>{bookingFormData.studentList ? bookingFormData.studentList.name : 'Choose a file'}</span>
@@ -253,6 +256,7 @@ export default function ScheduleYourVisitPage() {
                 </div>
               </div>
             </div>
+            </fieldset>
 
             {bookingError && <p className="text-red-500 mb-3">{bookingError}</p>}
 
